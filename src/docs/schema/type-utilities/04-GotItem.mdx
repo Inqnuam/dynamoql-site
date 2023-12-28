@@ -1,0 +1,23 @@
+import Tabs from "@theme/Tabs";
+import TabItem from "@theme/TabItem";
+
+
+GotItem is very similar to [StoredItem](./StoredItem) except Schema `get` options don't affects `required` true/false option.
+
+
+
+<Tabs>
+<TabItem value="ts" label="TypeScript">
+
+```ts 
+type GotItemEntity = (typeof userSchema)["GotItem"];
+ ```
+</TabItem>
+<TabItem value="jsdoc" label="JSDoc">
+```js
+/**
+ * @typedef {userSchema["GotItem"]} GotItemEntity
+ */
+ ```
+</TabItem>
+</Tabs>

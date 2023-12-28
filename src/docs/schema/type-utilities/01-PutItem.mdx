@@ -1,0 +1,167 @@
+import Tabs from "@theme/Tabs";
+import TabItem from "@theme/TabItem";
+
+
+To get defined Schema PutItem Entity we can use Schema's `PutItem` type.
+
+Considering our Schema is:
+<Tabs>
+<TabItem value="ts" label="TypeScript">
+
+```ts 
+import { Schema } from "dynamoql";
+
+const userSchema = new Schema({
+  id: {
+    type: String,
+    primaryIndex: true,
+  },
+  age: Number,
+  firstname: {
+    type: String,
+    required: true,
+    capitalize: true
+  },
+  isActive: {
+    type: Boolean,
+  },
+  sex: {
+    type: String,
+    required: true,
+    enum: ["female", "male"],
+  },
+  friends: {
+    type: Array,
+    items: String,
+  },
+  data: [Number, String, { type: Set, items: String }]
+  // highlight-next-line
+} as const);
+ ```
+</TabItem>
+<TabItem value="jsdoc" label="JSDoc">
+```js
+// highlight-next-line
+// @ts-check
+
+const { Schema } = require("dynamoql");
+
+const userSchema = new Schema(
+// highlight-next-line
+  /** @type {const} */ ({
+    id: {
+      type: String,
+      primaryIndex: true,
+    },
+    age: Number,
+    firstname: {
+      type: String,
+      required: true,
+      capitalize: true,
+    },
+    isActive: {
+      type: Boolean,
+    },
+    sex: {
+      type: String,
+      required: true,
+      enum: ["female", "male"],
+    },
+    friends: {
+      type: Array,
+      items: String,
+    },
+    data: [Number, String, { type: Set, items: String }],
+  })
+);
+ ```
+</TabItem>
+</Tabs>
+
+
+<Tabs>
+<TabItem value="ts" label="TypeScript">
+
+```ts 
+type UserPutItemEntity = (typeof userSchema)["PutItem"];
+ ```
+</TabItem>
+<TabItem value="jsdoc" label="JSDoc">
+```js
+/**
+ * @typedef {userSchema["PutItem"]} UserPutItemEntity
+ */
+ ```
+</TabItem>
+</Tabs>
+
+For our example Schema, `PutItem` type produces following definition:
+
+<Tabs>
+<TabItem value="ts" label="TypeScript">
+
+```ts 
+interface UserPutItemEntity {
+ id: string;
+ age: number;
+ firstname: string;
+ isActive?: boolean;
+ sex: "female" | "male";
+ friends?: string[];
+ data: number | string | Set<string>
+}
+ ```
+</TabItem>
+<TabItem value="jsdoc" label="JSDoc">
+```js
+/**
+ * @typedef {object} UserPutItemEntity
+ * @property {string} id
+ * @property {number} age
+ * @property {string} firstname
+ * @property {boolean} [isActive]
+ * @property {"female" | "male"} sex
+ * @property {Array<string>} [friends]
+ * @property {number |string | Set<string>} data
+ */
+ ```
+</TabItem>
+</Tabs>
+
+
+Then use it as any type:
+<Tabs>
+<TabItem value="ts" label="TypeScript">
+
+```ts 
+const newUser: UserPutItemEntity = {
+    id: "user-1",
+    age: 24,
+    data: "something",
+    firstname: "John",
+    sex: "male"
+};
+ ```
+</TabItem>
+<TabItem value="jsdoc" label="JSDoc">
+```js
+/**
+ * @type UserPutItemEntity
+ */
+const newUser = {
+    id: "user-1",
+    age: 24,
+    data: "something",
+    firstname: "John",
+    sex: "male"
+};
+ ```
+</TabItem>
+</Tabs>
+
+
+:::danger
+
+Do not use `PutItem` as JS value. It is undefined and will lead to runtime error.
+
+:::

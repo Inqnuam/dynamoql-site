@@ -1,0 +1,137 @@
+### Introduction
+`transactDelete` method performs transact delete request using aws-sdk [TransactWriteItemsCommand](https://docs.aws.amazon.com/AWSJavaScriptSDK/v3/latest/client/dynamodb/command/TransactWriteItemsCommand/).
+
+
+### execute
+
+`transactDelete` takes 2 arguments:
+
+    1. (required) an array of object where each object includes:
+        - item `primaryIndex`
+        - optionnally KeyConditionExpression
+        - optionnally [Condition expression](/docs/schema/data-types/String#condition-expression) which will perform `FilterExpression`
+    2. [options](#options) (optionnal)
+
+
+
+```ts
+const res = await User.transactDelete(
+  [
+    {
+      id: "user-1",
+    },
+    {
+      id: "user-2",
+      age: {
+        $gt: 20,
+      },
+    },
+  ],
+  { ReturnConsumedCapacity: "TOTAL" }
+);
+```
+
+
+### options
+
+`options` is an object which accepts `TransactWriteItemsInput` options and DynamoQL specific options.
+
+
+    #### exec
+    `exec` boolean directive to execute or not the actual request.
+
+
+```ts
+import type { TransactWriteItemsInput } from "@aws-sdk/client-dynamodb";
+
+const cmd: TransactWriteItemsInput = await User.transactDelete(
+  [
+    {
+      id: "user-1",
+    },
+    {
+      id: "user-2",
+      age: {
+        $gt: 20,
+      },
+    },
+  ],
+  // highlight-next-line
+  { exec: false }
+);
+```
+
+    #### check
+
+[ConditionCheck](https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_ConditionCheck.html) on the same table.  
+
+
+```ts
+const res = await User.transactDelete(
+  [
+    {
+      id: "user-1",
+    },
+    {
+      id: "user-2",
+      age: {
+        $gt: 20,
+      },
+    },
+  ],
+  {
+    // highlight-start
+    check: [
+      {
+        id: "user-64",
+        isActive: false,
+      },
+    ],
+    // highlight-end
+  }
+);
+```
+
+If you need ConditionCheck on another table, use `{ exec: false }` then merge your conditions manually.
+
+```ts
+import { TransactWriteItemsCommand } from "@aws-sdk/client-dynamodb";
+import type { TransactWriteItemsInput } from "@aws-sdk/client-dynamodb";
+
+const cmd: TransactWriteItemsInput = await User.transactDelete(
+  [
+    {
+      id: "user-1",
+    },
+    {
+      id: "user-2",
+      age: {
+        $gt: 20,
+      },
+    },
+  ],
+  { exec: false }
+);
+
+// pretending UserOrders is another instance of Model
+
+const orderCheck: TransactWriteItemsInput = await UserOrders.transactWrite(
+  [
+    {
+      check: [
+        {
+          id: "user-id",
+          orders: {
+            $size: 0,
+          },
+        },
+      ],
+    },
+  ],
+  { exec: false }
+);
+
+cmd.TransactItems.push(orderCheck.TransactItems[0]);
+
+await User.client.send(new TransactWriteItemsCommand(cmd));
+```

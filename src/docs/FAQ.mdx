@@ -1,0 +1,144 @@
+
+
+<details>
+<summary>Is DynamoQL production ready ?</summary>
+
+Yes.  
+More than 400 integration and unit tests covers the entier documentation and more.  
+If you encounter any problem, feel free to open an issue.
+
+</details>
+
+
+<details>
+<summary>Is TypeScript mandatory ?</summary>
+
+No.  
+DynmoQL is completly written in TypeScript to drastically improve developer experience with powerfull suggestions.  
+DynamoQL works well with both TypeScript and JSDoc out of box.
+
+</details>
+
+
+
+<details>
+<summary>Is multi-region supported ?</summary>
+
+Yes.  
+DynamoQL initialize DynamoDB client with configration you provide.
+
+</details>
+
+
+
+<details>
+<summary>Can i use aws-sdk v2 with DynamoQL ?</summary>
+
+No.  
+DynamoQL supports only aws-sdk v3 and there is no plan to support v2.
+</details>
+
+
+<details>
+<summary>Can i use DynamoQL in browser ?</summary>
+
+Yes, but NodeJS `Buffer` must be pollyfilled.  
+You can try [buffer by feross](https://github.com/feross/buffer)
+</details>
+
+
+<details>
+<summary>How an item is validated ?</summary>
+
+DynamoQL item validation process starts by walking item properties based on defined Schema.  
+
+    1. If walker encounters a missing field, it looks for `default` defined in your Schema, if `default` is present then missing field is filled with the `default` value (or `default` functions returned value).
+    2. walker applies string transformers like `trim`, `lowercase`, `capitalize` etc..
+    3. walker executes Schema defined `set` functions and applies returned values.
+    4. walker looks for missing fields and throws DynamoQLMissingKeyException with details after walking the entier item.
+    5. walker verifies types and throws DynamoQLInvalidTypeException.
+    6. walker verifies enums and throws DynamoQLInvalidEnumException.
+    7. walker verifies `min`, `max`, `minLength`, `maxLength` and throws DynamoQLInvalidMinMaxException.
+    8. walker executes Schema defined `validate` functions are throws DynamoQLCustomValidatorException.
+
+</details>
+
+
+
+<details>
+<summary>Can i trust unknown sources when i use DynamoQL ?</summary>
+
+***Never.***  
+
+An attacker using a public API, can change the behaviour of your condition expressions.
+However you can reduce attack surface using `longhand` syntax in your condition expressions.
+
+a very basic example:
+
+```ts
+// pseudo Express route middleware
+const updateUserRole = (req, res, next) => {
+  await User.update(
+    {
+      id: req.body.userId,
+      // checking password equality with shorthand syntax
+      // highlight-next-line
+      password: req.body.password,
+    },
+    { group: "admin-group" }
+  );
+
+  next();
+};
+```
+Now lets imagine `req.body.password` is not a *string* as you may except, but an object like:
+
+
+```json
+{
+  $size: {
+    $gte: 0
+  }
+}
+```
+
+Attacker bypass password checking by producing a **string.length >= 0** condition.
+
+
+To prevent injections from unkown sources use `longthand` syntax
+```ts
+// pseudo Express route middleware
+const updateUserRole = (req, res, next) => {
+  await User.update(
+    {
+      id: req.body.userId,
+      // checking password with longthand syntax
+      password: {
+        // highlight-next-line
+        $eq: req.body.password,
+      },
+    },
+    { group: "admin-group" }
+  );
+
+  next();
+};
+```
+
+</details>
+
+
+<details>
+<summary>Can I use multiple models with the same table name ?</summary>
+
+Yes.  
+Nothing prevents you to use the same table name with different Models as long as `primaryIndex`, `sortKey`, `LSI` and `GSI` are identical.
+</details>
+
+
+<details>
+<summary>Can I use DynamoQL with an already existing project ?</summary>
+
+Yes.  
+However you should ensure Schema definition meets your stored items types.
+</details>

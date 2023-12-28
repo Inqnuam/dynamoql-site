@@ -1,0 +1,30 @@
+
+To extend [Model](./Define%20a%20Model) class with type support we must provide Model's constuctor types.
+
+
+
+```ts
+import { Model, Schema } from "dynamoql";
+
+    // This is a very simple example
+
+class MyExtendedModel<A extends string, B, C> extends Model<A, B, C> {
+  constructor(tableName: A, schema: Schema<B>, options: any) {
+    super(tableName, schema, options);
+  }
+
+  async scanAll() {
+    let ExclusiveStartKey;
+    const Items = [];
+    
+    do {
+      const res = await this.scan({}, { ExclusiveStartKey });
+
+      ExclusiveStartKey = res.LastEvaluatedKey;
+      Items.push(...res.Items);
+    } while (ExclusiveStartKey);
+
+    return Items;
+  }
+}
+```

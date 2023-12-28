@@ -1,0 +1,84 @@
+### Introduction
+`put` method performs put request using aws-sdk [PutItemCommand](https://docs.aws.amazon.com/AWSJavaScriptSDK/v3/latest/client/dynamodb/command/PutItemCommand/).
+
+In addition to PutItemCommandOutput, `put` response will include `Item` which is fully typed based on your Schema declaration.  
+`Item` is usefull as your Schema may include `default`, `set` or other transformer options.
+
+
+### execute
+
+`put` takes 2 arguments:
+
+    1. (required) Item 
+    2. (optionnal) conditions
+    2. (optionnal) [options](#options) 
+
+
+
+any invalid value in Item will lead to dev time and runtime error
+
+```ts
+const res = await User.put(
+  {
+    id: "user-1",
+    age: 27,
+    firstname: "John",
+    sex: "male",
+    data: "something",
+  },
+  {
+    firstname: {
+      $startsWith: "Jo"
+    },
+  },
+  { ReturnConsumedCapacity: "TOTAL" }
+);
+```
+
+
+### options
+
+`options` is an object which accepts `PutItemCommandInput` options and DynamoQL specific options.
+
+
+    #### exec
+    `exec` boolean directive to execute or not the actual request.  
+    When `false` put will return `PutItemCommandInput` object.
+
+
+```ts
+import type { PutItemCommandInput } from "@aws-sdk/client-dynamodb";
+
+const cmd: PutItemCommandInput = await User.put(
+  {
+    id: "user-1",
+    age: 27,
+    firstname: "John",
+    sex: "male",
+    data: "something",
+  },
+   undefined, // no condition
+  // highlight-next-line
+  { exec: false }
+);
+```
+
+
+    #### setterInfo
+
+`setterInfo` allows you to pass any value to your Schema [set](/docs/schema/data-types/String#--set) function's third argument.
+
+```ts
+const res = await User.put(
+  {
+    id: "user-1",
+    age: 27,
+    firstname: "John",
+    sex: "male",
+    data: "something",
+  },
+  undefined, // no condition
+  // highlight-next-line
+  { setterInfo: { generateHash: true } }
+);
+```

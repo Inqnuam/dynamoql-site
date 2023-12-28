@@ -1,0 +1,370 @@
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+
+`Null` represents DynamoDB's "NULL" data type.
+
+:::tip
+
+Enable `strictNullChecks` in your tsconfig.json for better type checking and inference.
+
+:::
+
+<Tabs>
+<TabItem value="ts" label="TypeScript">
+
+```ts 
+// highlight-next-line
+import { Schema, Null } from "dynamoql";
+import { randomUUID } from "crypto";
+
+const userSchema = new Schema({
+  id: {
+    type: String,
+    primaryIndex: true,
+    default: randomUUID
+  },
+  // highlight-next-line
+  isActive: Null,
+  deleted: {
+    // highlight-next-line
+    type: Null
+  }
+} as const);
+ ```
+</TabItem>
+<TabItem value="jsdoc" label="JSDoc">
+```js
+// highlight-next-line
+// @ts-check
+// highlight-next-line
+const { Schema, Null } = require("dynamoql");
+const { randomUUID } = require("crypto");
+
+// highlight-next-line
+const userSchema = new Schema(/** @type {const} */({
+   id: {
+    type: String,
+    primaryIndex: true,
+    default: randomUUID
+  },
+  // highlight-next-line
+  isActive: Null,
+  deleted: {
+    // highlight-next-line
+    type: Null
+  }
+}));
+ ```
+</TabItem>
+</Tabs>
+
+
+### Options
+
+ ### - required 
+boolean which makes attribute as required or optionnal, default is `false` when type is defined with an Object.
+
+```ts 
+import { Schema, Null } from "dynamoql";
+import { randomUUID } from "crypto";
+
+ const userSchema = new Schema({
+  id: {
+    type: String,
+    primaryIndex: true,
+    default: randomUUID
+  },
+  isActive: {
+    type: Null,
+    // highlight-next-line
+    required: true
+  }
+} as const);
+ ```
+
+
+    ### - default
+To set a default value for an attribute use `default` option.
+
+```ts 
+import { Schema, Null } from "dynamoql";
+import { randomUUID } from "crypto";
+
+ const userSchema = new Schema({
+  id: {
+    type: String,
+    primaryIndex: true,
+    default: randomUUID
+  },
+  isActive: {
+    type: Null,
+    // highlight-next-line
+    default: null
+  }
+} as const);
+ ```
+
+ With this configuration when you `put` an Item into your table, your Item will contain isActive attribute with true as value.
+
+ `default` must be a Null.  
+ Otherwise it will throw an error during dev time and runtime.
+
+ ```ts 
+import { Schema, Null } from "dynamoql";
+import { randomUUID } from "crypto";
+
+ const userSchema = new Schema({
+  id: {
+    type: String,
+    primaryIndex: true,
+    default: randomUUID
+  },
+  isActive: {
+    type: Null,
+    // err
+    default: "some-value" // DynamoQLInvalidTypeException: "isActive" expected to be "NULL" received "S".
+  }
+} as const);
+ ```
+
+ `default` can also be a (async) function which accepts one argument (put Item value) and must return a Null.
+
+  ```ts 
+import { Schema, Null } from "dynamoql";
+import { randomUUID } from "crypto";
+
+ const userSchema = new Schema({
+  id: {
+    type: String,
+    primaryIndex: true,
+    default: randomUUID
+  },
+  // highlight-next-line
+  moderator: Boolean,
+  isActive: {
+    type: Null,
+    // highlight-start
+    default: (item: Record<string, any>)=> {
+        if(item.moderator) {
+            return false
+        }
+        return false
+    }
+    // highlight-end
+  }
+} as const);
+ ```
+
+
+  ### - set
+
+To modify a value before storing it use `set` option.  
+set (async) function accepts 3 arguments:
+    1. `self` provided value.
+    2. `item` entier put Item object.
+    3. `setterInfo` an optionnal value provided inside in put, batchPut, batchWrite, transactWrite command's options.
+
+`set` will not be called if attribute doesn't exists in put Item object.
+
+  ```ts 
+import { Schema, Null } from "dynamoql";
+import { randomUUID } from "crypto";
+
+ const userSchema = new Schema({
+  id: {
+    type: String,
+    primaryIndex: true,
+    default: randomUUID
+  },
+  moderator: Boolean,
+  score: {
+    type: Null,
+    // highlight-start
+    set: (self: boolean, item: Record<string, any>, setterInfo?: any)=> {
+
+        if(item.moderator && setterInfo?.someCondition) {
+         return undefined
+        }
+
+        return self
+    }
+    // highlight-end
+  }
+} as const);
+ ```
+
+    ### - get
+
+When reteving an Item we can transform field's value with get option.  
+
+get (async) function accepts 3 arguments:
+    1. `self` retrieved value.
+    2. `item` entier retrieved Item object.
+    3. `getterInfo` an optionnal value provided inside get, batchGet, transactGet, query, scan command's options.
+
+
+`get` can return anything.  
+`get` will not be called if attribute doesn't exists in stored Item.
+
+  ```ts 
+import { Schema, Null } from "dynamoql";
+import { randomUUID } from "crypto";
+
+ const userSchema = new Schema({
+  id: {
+    type: String,
+    primaryIndex: true,
+    default: randomUUID
+  },
+  moderator: Boolean,
+  score: {
+    type: Null,
+    // highlight-start
+    get: (self: boolean, item: Record<string, any>, getterInfo?: any)=> {
+        if(getterInfo.someCondition) {
+            return {
+              level: 100
+            }
+        }
+         return self
+    }
+    // highlight-end
+  }
+} as const);
+ ```
+
+:::info
+
+`get` returned value's type affects Item type when retriving Item(s) from DynamoDB. 
+
+:::
+
+
+  ### - description
+  add any information to the Schema for your personal usage.
+
+
+### Condition expression 
+
+Condition expression are not part of Schema but they are based on your defined Schema.  
+They are used in various DynamoDB operations to check for some condition(s).  
+DynamoQL supports all DynamoDB Condition expression.
+
+     ### - equals
+
+```json
+{
+  score: null
+}
+```
+
+or 
+
+```json
+{
+  score: {
+    // highlight-next-line
+    $eq: null
+  }
+}
+```
+
+  ### - not equals
+
+```json
+{
+  score: {
+    // highlight-next-line
+    $neq: null
+  }
+}
+```
+
+  ### - attribute exists
+
+`$exists` can be `true` or `false`.
+
+```json
+{
+  score: {
+    // highlight-next-line
+    $exists: true
+  }
+}
+```
+
+### - attribute type
+
+Checks for stored attribute type.
+
+```json
+{
+  score: {
+    // highlight-next-line
+    $type: Null
+  }
+}
+```
+`$type` can be String, Number, Boolean, Null, Buffer, Object, Array, or `{type: Set, items: String | Number | Buffer }`
+
+
+  ### - in
+
+Checks if provided array includes stored value (null).
+
+
+```json
+{
+  score: {
+    // highlight-next-line
+    $in: ["Steve", 214, "Sara", false, null, "John", true, "Mike",]
+  }
+}
+``` 
+
+
+
+### Update expressions 
+
+Like Condition expression, Update expressions are not part of Schema, but they are based on defined Schema.
+
+Update expressions are used in `update`, `transactUpdate` and `transactWrite` operations.
+
+DynamoQL supports all DynamoDB update operations.
+
+
+  ### - set
+
+`$set` replaces stored value by provided value.
+
+```json
+{
+  score: {
+    // highlight-next-line
+    $set: null
+  }
+}
+```
+
+shorthand version is
+
+```json
+{
+  score: null
+}
+```
+
+
+  ### - if not exists
+
+`$ifNotExists` sets provided value if attribute do not exists in stored item.
+
+
+```json
+{
+  score: {
+    // highlight-next-line
+    $ifNotExists: null
+  }
+}
+```

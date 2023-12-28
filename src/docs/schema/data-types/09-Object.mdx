@@ -1,0 +1,841 @@
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+
+### Introduction
+
+`Object` represents DynamoDB's Map data type (marshalled as "M").
+
+
+### Define an Object
+<Tabs>
+<TabItem value='dql' label='DynamoQL'>
+```ts 
+import { Schema } from "dynamoql";
+import { randomUUID } from "crypto";
+
+const userSchema = new Schema({
+  id: {
+    type: String,
+    primaryIndex: true,
+    default: randomUUID
+  },
+  // highlight-next-line
+  info: Object, // shorthand
+  adress: {
+    // longhand
+    // highlight-start
+    type: Object,
+    allowUndeclared: true,
+    fields: {}
+    // highlight-end
+  }
+} as const);
+```
+</TabItem>
+
+<TabItem value='ts' label='produced type'>
+```ts 
+interface IUserSchema {
+    id: string,
+    info: Record<string, any>,
+    adress?: Record<string, any>
+}
+```
+</TabItem>
+
+</Tabs>
+
+
+:::info
+
+When Object type is defined with a JS object, `fields` must be defined.
+
+:::
+
+
+### Nested Object
+
+To define nested object properties, fill `fields` with desired keys and types
+
+<Tabs>
+<TabItem value='dql' label='DynamoQL'>
+```ts 
+import { Schema } from "dynamoql";
+import { randomUUID } from "crypto";
+
+const userSchema = new Schema({
+  id: {
+    type: String,
+    primaryIndex: true,
+    default: randomUUID
+  },
+  adress: {
+    type: Object,
+    fields: {
+        // highlight-start
+        country: String,
+        city: String,
+        street: String,
+        zip: {
+            type: Number,
+            min: 01,
+            max: 999999
+        }
+        // highlight-end
+    }
+  }
+} as const);
+```
+</TabItem>
+
+<TabItem value='ts' label='produced type'>
+```ts 
+interface IUserSchema {
+    id: string,
+    adress?: {
+      country: string;
+      city: string;
+      street: string;
+      zip?: number
+    }
+}
+```
+</TabItem>
+
+</Tabs>
+
+### Options
+
+    ### - required 
+
+boolean which makes attribute as required or optionnal, default is `false` when type is defined with a JS object.
+
+```ts 
+import { Schema } from "dynamoql";
+import { randomUUID } from "crypto";
+
+const userSchema = new Schema({
+  id: {
+    type: String,
+    primaryIndex: true,
+    default: randomUUID
+  },
+  adress: {
+    type: Object,
+    // highlight-next-line
+    required: true,
+    fields: {
+      country: String,
+      city: String
+    }
+  }
+} as const);
+```
+
+    ### - default
+To set a default value for an attribute use `default` option.
+
+```ts 
+import { Schema } from "dynamoql";
+import { randomUUID } from "crypto";
+
+const userSchema = new Schema({
+  id: {
+    type: String,
+    primaryIndex: true,
+    default: randomUUID
+  },
+  adress: {
+    type: Object,
+    fields: {
+      country: String,
+      city: String
+    },
+    // highlight-start
+    default: {
+      country: "France",
+      city: "Paris"
+    },
+    // highlight-end
+  }
+} as const);
+```
+
+ With this configuration when you `put` an Item into your table, your Item will contain adress attribute with `{country: "France", city: "Paris"}` as value.
+
+ `default`'s type must match `fields` type. 
+ Otherwise it will throw an error during dev time and runtime.
+
+```ts 
+import { Schema } from "dynamoql";
+import { randomUUID } from "crypto";
+
+const userSchema = new Schema({
+  id: {
+    type: String,
+    primaryIndex: true,
+    default: randomUUID
+  },
+  adress: {
+    type: Object,
+    fields: {
+      country: String,
+      city: String
+    },
+    // err
+    default: { // DynamoQLInvalidTypeException: "adress.country" expected to be "S" received "N".
+      country: 87, 
+      city: "Some-city"
+    }
+  }
+} as const);
+ ```
+
+ `default` can also be a (async) function which accepts one argument (put Item value) and must return an object which type's must match `fields` type.
+
+```ts 
+import { Schema } from "dynamoql";
+import { randomUUID } from "crypto";
+
+const userSchema = new Schema({
+  id: {
+    type: String,
+    primaryIndex: true,
+    default: randomUUID
+  },
+  adress: {
+    type: Object,
+    fields: {
+      country: String,
+      city: String
+    },
+    default: async (item: Record<string, any>) => {
+        const userInfo = await getUserAdress(item.id)
+        return userInfo.adress
+    }
+  }
+} as const);
+```
+
+
+    ### - allow undeclared
+
+`allowUndeclared` option allows you to define an object with unknown properties.  
+Default is `false`.
+
+
+:::info
+
+when `false` all undeclared fields are removed from object before putting or updating an item.
+
+:::
+
+
+<Tabs>
+<TabItem value='dql' label='DynamoQL'>
+```ts 
+import { Schema } from "dynamoql";
+import { randomUUID } from "crypto";
+
+const userSchema = new Schema({
+  id: {
+    type: String,
+    primaryIndex: true,
+    default: randomUUID
+  },
+  adress: {
+    type: Object,
+    allowUndeclared: true,
+    fields: {}
+  }
+} as const);
+```
+</TabItem>
+
+<TabItem value='ts' label='produced type'>
+```ts
+interface IUserSchema {
+    id: string,
+    adress?: Record<string, any>
+}
+```
+</TabItem>
+</Tabs>
+
+It is possible to combine `fields` with `allowUndeclared`:
+
+
+<Tabs>
+<TabItem value='dql' label='DynamoQL'>
+```ts 
+import { Schema } from "dynamoql";
+import { randomUUID } from "crypto";
+
+const userSchema = new Schema({
+  id: {
+    type: String,
+    primaryIndex: true,
+    default: randomUUID
+  },
+  adress: {
+    type: Object,
+    allowUndeclared: true,
+    fields: {
+        country: String,
+        city: {
+          type: String,
+          required: false 
+        }
+    },
+  }
+} as const);
+```
+</TabItem>
+
+<TabItem value='ts' label='produced type'>
+```ts
+interface IUserSchema {
+    id: string,
+    adress?: { country: string; city?:string } & Record<string, any>
+}
+```
+</TabItem>
+</Tabs>
+
+
+:::info[Recommandation]
+
+Reduce usage of `allowUndeclared` when possible.  
+Prefer `union` types and `required` declarations in `fields` instead.
+
+
+
+<Tabs>
+<TabItem value='dql' label='DynamoQL'>
+```ts 
+import { Schema } from "dynamoql";
+import { randomUUID } from "crypto";
+
+const userSchema = new Schema({
+  id: {
+    type: String,
+    primaryIndex: true,
+    default: randomUUID
+  },
+  adress: {
+    type: Object,
+    required: true
+    fields: {
+      country: [
+        { type: String },
+        {
+         type: Number,
+         set: (self:number)=> {
+            return getCountryLabelFromCountryCode(self)
+         }
+        }
+      ],
+      city: { type: String },
+      zip: [
+        { type: Number },
+        {
+         type: String,
+         set: (self:string)=> {
+            return Number(self)
+         }
+        }
+      ],
+    },
+  }
+} as const);
+```
+</TabItem>
+
+<TabItem value='ts' label='produced type'>
+```ts
+interface IUserSchema {
+    id: string,
+    adress: {
+      country?: string | number;
+      city?: string;
+      zip?: string | number;
+    }
+}
+```
+</TabItem>
+</Tabs>
+
+
+:::
+
+
+   ### - set
+
+To modify a value before storing it use `set` option.  
+set (async) function accepts 3 arguments:
+    1. `self` provided value.
+    2. `item` entier put Item object.
+    3. `setterInfo` an optionnal value provided inside in put, batchPut, batchWrite, transactWrite command's options.
+
+`set` will not be called if attribute doesn't exists in put Item object.
+
+
+```ts 
+import { Schema } from "dynamoql";
+import { randomUUID } from "crypto";
+
+const userSchema = new Schema({
+  id: {
+    type: String,
+    primaryIndex: true,
+    default: randomUUID
+  },
+  moderator: Boolean,
+  adress: {
+    type: Object,
+    fields: {
+        country: String,
+        city: String
+    },
+    // highlight-start
+    set: (self: Record<string, any>, item: Record<string, any>, setterInfo?: any)=> {
+        if(item.moderator && setterInfo?.someCondition) {
+         return {
+            country: "UK",
+            city: "London"
+         }
+        }
+        return self
+    }
+    // highlight-end
+  }
+} as const);
+```
+
+    ### - get
+
+When reteving an Item we can transform field's value with get option.  
+
+get (async) function accepts 3 arguments:
+    1. `self` retrieved value.
+    2. `item` entier retrieved Item object.
+    3. `getterInfo` an optionnal value provided inside get, batchGet, transactGet, query, scan command's options.
+
+
+`get` can return anything.  
+`get` will not be called if attribute doesn't exists in stored Item.
+
+```ts 
+import { Schema } from "dynamoql";
+import { randomUUID } from "crypto";
+
+const userSchema = new Schema({
+  id: {
+    type: String,
+    primaryIndex: true,
+    default: randomUUID
+  },
+  moderator: Boolean,
+  adress: {
+    type: Object,
+    fields: {
+        country: String,
+        city: String
+    },
+    // highlight-start
+    get: (self: Record<string, any>, item: Record<string, any>, getterInfo?: any)=> {
+        if(getterInfo?.someCondition) {
+            return `${self.city}, ${self.country}`
+        }
+         return self
+    }
+    // highlight-end
+  }
+} as const);
+```
+
+
+    ### - validate
+
+validate option allows you to manually validate provided value in `put` and `update` commands.  
+To return an error you should return a string which explains value invalidity. Any other returned value is considered as valid.
+
+```ts 
+import { Schema } from "dynamoql";
+import { randomUUID } from "crypto";
+
+const userSchema = new Schema({
+  id: {
+    type: String,
+    primaryIndex: true,
+    default: randomUUID
+  },
+  moderator: Boolean,
+  adress: {
+    type: Object,
+    fields: {
+        country: String,
+        city: String
+    },
+    // highlight-start
+    validate: (self: number)=> {
+        if(checkForsomeCondition(self)) {
+            return "some error message."
+        }
+    }
+    // highlight-end
+  }
+} as const);
+```
+
+
+  ### - description
+  add any information to the Schema for your personal usage.
+
+
+### Condition expression 
+
+Condition expression are not part of Schema but they are based on your defined Schema.  
+They are used in various DynamoDB operations to check for some condition(s).  
+DynamoQL supports all DynamoDB Condition expression.
+
+  ### - equals
+
+```json
+{
+  adress: {
+    // highlight-start
+    $eq: {
+      country: "France",
+      city: "Paris"
+    }
+     // highlight-end
+  }
+}
+```
+
+:::danger
+
+Unlike other DynamoQL types there is not a shorthand version of `$eq` for Object type.  
+'shorthand' version will apply Condition expression on nested object keys individually which may lead to unexpected behaviour.
+
+:::
+
+
+  ### - not equals
+
+```json
+{
+  adress: {
+    // highlight-start
+    $neq: {
+      country: "France",
+      city: "Paris"
+    }
+     // highlight-end
+  }
+}
+```
+
+  ### - attribute exists
+
+`$exists` can be `true` or `false`.
+
+```json
+{
+  adress: {
+    // highlight-next-line
+    $exists: true
+  }
+}
+```
+
+  ### - attribute type
+
+Checks for stored attribute type.
+
+```json
+{
+  adress: {
+    // highlight-next-line
+    $type: Object
+  }
+}
+```
+`$type` can be String, Number, Boolean, Null, Buffer, Object, Array, or `{type: Set, items: String | Number | Buffer }`
+
+
+
+  ### - object keys length
+
+Checks for stored object keys length.
+
+```json
+{
+  adress: {
+    // highlight-next-line
+    $size: 1
+  }
+}
+```
+
+`$size` can also be any valid numeric comparison operator.
+
+```json
+{
+  adress: {
+    $size: {
+      // highlight-next-line
+      $gt: 0
+    }
+  }
+}
+```
+Possible operators are [$eq](./Number#--equals), [$neq](./Number#--not-equals), [$gt](./Number#--greather-than), [$gte](./Number#--greather-than-or-equal), [$lt](./Number#--little-than), [$lte](./Number#--little-than-or-equal), [$in](./Number#--in), [$between](./Number#--between).  
+
+
+
+  ### - nested object conditions
+
+Sometimes we need to verify a condition on a specific property of an object.  
+Accessing a property is possible with 2 styles.
+
+DynamoDB style
+
+```json
+{
+  // highlight-next-line
+  "adress.city": "Paris"
+}
+```
+
+DynamoQL style
+```json
+{
+  adress: {
+    // highlight-next-line
+    city: "Paris"
+  }
+}
+```
+
+Please refer to your defined Object `fields` attribute type for more condition.  
+In our example it will be [String](./String#condition-expression)
+
+
+ ### - AND
+
+Checks for multiple conditions. Condition is valid if ALL specified conditions are satisfied.
+
+```json
+{
+  adress: {
+    // highlight-start
+    $and: [
+      {
+        $size: 2
+      },
+      {
+        city: "Paris"
+      }
+    ]
+    // highlight-end
+  }
+}
+```
+
+shorthand style
+
+```json
+{
+  adress: {
+    $size: 2,
+    city: "Paris"
+  }
+}
+```
+
+
+  ### - OR
+
+Checks for multiple conditions. Condition is valid if at least one of specified conditions is satisfied.
+
+```json
+{
+  adress: {
+    // highlight-start
+    $or: [
+      {
+        $size: 3
+      },
+      {
+        city: "Paris"
+      }
+    ]
+     // highlight-end
+  }
+}
+```
+
+ ### - NOT
+
+Condition is valid if specified condition is NOT satisfied.
+
+```json
+{
+  adress: {
+    // highlight-next-line
+    $not: {
+      city: "Lyon"
+    }
+  }
+}
+```
+
+`$not` accepts any Condition expression.
+
+When multiple conditions are provided inside $not: \{\} they are considered as $and condition.
+
+```json
+{
+  adress: {
+    $not: {
+      // highlight-start
+      $size: 2,
+      city: "Paris"
+      // highlight-end
+    }
+  }
+}
+```
+
+longhand equivalent is:
+
+```json
+{
+  adress: {
+    $not: {
+      // highlight-start
+      $and: [
+        {
+          $size: 2
+        },
+        {
+          city: "Paris"
+        }
+      ]
+      // highlight-end
+    }
+  }
+}
+```
+
+
+
+### Update expressions 
+
+Like Condition expression, Update expressions are not part of Schema, but they are based on defined Schema.
+
+Update expressions are used in `update`, `transactUpdate` and `transactWrite` operations.
+
+DynamoQL supports all DynamoDB update operations.
+
+
+  ### - set
+
+`$set` replaces stored object by provided object.
+
+```json
+{
+  adress: {
+    // highlight-next-line
+    $set: {
+      country: "France",
+      city: "Paris"
+    }
+  }
+}
+```
+
+
+:::danger
+
+Unlike other DynamoQL types there is not a shorthand version of `$set` for Object type.  
+'shorthand' version will apply update operations on nested object keys individually which will lead to a partial update of stored object.
+
+:::
+
+
+  ### - if not exists
+
+`$ifNotExists` sets provided object if attribute do not exists in stored item.  
+`$ifNotExists` dont affects Condition expression and is attribute specific.  
+If attribute exists, stored value stays unchanged.
+
+
+```json
+{
+  adress: {
+    // highlight-next-line
+    $ifNotExists: {
+      country: "France",
+      city: "Paris"
+    }
+  }
+}
+```
+
+
+  ### - remove
+
+`remove` removes an attribute from stored object.
+
+```json
+{
+  adress: {
+    // highlight-next-line
+    $remove: "city"
+  }
+}
+```
+It is possible to remove multiple attributes by passing an array of attributes.
+
+```json
+{
+  adress: {
+    // highlight-next-line
+    $remove: ["city", "country"]
+  }
+}
+```
+
+:::info
+
+You can only remove optionnal attributes.
+
+:::
+
+
+  ### - update nested object
+
+Using JS dot notation.
+
+```json
+{
+  "adress.city": "Lyon"
+}
+```
+
+Using DynamoQL syntax.
+
+```json
+{
+  adress: {
+    city: "Lyon"
+  }
+}
+```
+
+
+Please refer to your defined Object `fields` attribute type for more update operations.  
+In our example it will be [String](./String#update-expressions)

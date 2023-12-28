@@ -1,0 +1,85 @@
+### Introduction
+`update` method performs update request using aws-sdk [UpdateItemCommand](https://docs.aws.amazon.com/AWSJavaScriptSDK/v3/latest/client/dynamodb/command/UpdateItemCommand/).
+
+
+
+### execute
+
+`update` takes 3 arguments:
+
+    1. (required) any [Condition expression](/docs/schema/data-types/String#condition-expression) with at least item identifier
+    2. (required) any [Update Expression](/docs/schema/data-types/Array#update-expressions).
+    3. (optionnal) [options](#options) 
+
+
+
+```ts
+const res = await User.update(
+  {
+    id: "user-2",
+    sex: "female",
+  },
+  {
+    friendId: {
+      $push: "user-1",
+    },
+    age: {
+      $incr: 1,
+    },
+  },
+  { ReturnConsumedCapacity: "TOTAL" }
+);
+```
+
+<details>
+<summary>Underlying request</summary>
+```ts
+import { DynamoDBClient, UpdateItemCommand } from "@aws-sdk/client-dynamodb";
+
+const client = new DynamoDBClient(config);
+
+const cmd = new UpdateItemCommand({
+  TableName: "user-table",
+  Key: { id: { S: "user-2" } },
+  UpdateExpression: "SET #n0 = list_append(#n0, :v1), #n2 = #n2 + :v3",
+  ConditionExpression: "#n4 = :v5",
+  ExpressionAttributeNames: { "#n0": "friendId", "#n2": "age", "#n4": "sex" },
+  ExpressionAttributeValues: { ":v1": { L: ["user-1"] }, ":v3": { N: "1" }, ":v5": { S: "female" } },
+  ReturnConsumedCapacity: "TOTAL",
+});
+
+client.send(cmd);
+```
+</details>
+
+
+### options
+
+`options` is an object which accepts `UpdateItemCommandInput` options and DynamoQL specific options.
+
+
+    #### exec
+    `exec` boolean directive to execute or not the actual request.  
+    When `false` update will return `UpdateItemCommandInput` object.
+
+
+```ts
+import type { UpdateItemCommandInput } from "@aws-sdk/client-dynamodb";
+
+const cmd: UpdateItemCommandInput = await User.update(
+  {
+    id: "user-2",
+    sex: "female",
+  },
+  {
+    friendId: {
+      $push: "user-1",
+    },
+    age: {
+      $incr: 1,
+    },
+  },
+  // highlight-next-line
+  { exec: false }
+);
+```

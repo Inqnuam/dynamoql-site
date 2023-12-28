@@ -1,0 +1,93 @@
+### Introduction
+`get` method performs get request using aws-sdk [GetItemCommand](https://docs.aws.amazon.com/AWSJavaScriptSDK/v3/latest/client/dynamodb/command/GetItemCommand/).
+
+`Item` in GetItemCommandOutput is fully typed based on your Schema declaration.
+
+
+### execute
+
+`get` takes 2 arguments:
+
+    1. item identifier (required)
+    2. [options](#options) (optionnal)
+
+
+
+```ts
+const res = await User.get("user-1", { ReturnConsumedCapacity: "TOTAL" });
+
+res.Item?.firstname;
+```
+
+If your table is a composite table (HASH and RANGE) you must pass `primaryIndex` and `sortKey` as object.
+
+```ts
+const res = await User.get({
+  groupId: "group-1",
+  userId: "user-1",
+});
+
+```
+
+
+
+### options
+
+`options` is an object which accepts `GetItemCommandInput` options and DynamoQL specific options.
+
+
+    #### exec
+    `exec` boolean directive to execute or not the actual request.  
+    When `false` get will return `GetItemCommandInput` object.
+
+
+```ts
+import type { GetItemCommandInput } from "@aws-sdk/client-dynamodb";
+
+const cmd: GetItemCommandInput = await User.get(
+  "user-1",
+  // highlight-next-line
+  { exec: false }
+);
+```
+
+    #### Select
+
+`Select` accepts an array of attributes and produces a `ProjectionExpression`.
+
+
+```ts
+const res = await User.get(
+  "user-1",
+  // highlight-next-line
+  { Select: ["id", "isActive"] }
+);
+
+```
+
+
+:::note
+
+`Select` affects returned `Item` type.
+
+```ts
+const { Item } = await User.get("user-1", { Select: ["id", "isActive"] });
+
+// err
+Item?.firstname; // Property 'firstname' does not exist on type { id: string; isActive?:boolean } ...
+```
+
+:::
+
+
+    #### getterInfo
+
+`getterInfo` allows you to pass any value to your Schema [get](/docs/schema/data-types/String#--get) function's third argument.
+
+```ts
+const res = await User.get(
+  "user-1",
+  // highlight-next-line
+  { getterInfo: { forFrontend: true } }
+);
+```

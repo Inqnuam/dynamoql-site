@@ -1,0 +1,634 @@
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+
+### Introduction
+`Date` is DynamoQL specific type.  
+Dates are stored as Number timestamp or in EPOCH format.  
+
+Accepted values for Date type fields are:
+     - Date instance
+     - number
+     - valid date string
+
+
+When reteving items, Date type attribute always returns a Date instance instead of stored number value.
+
+
+
+### Define a Date
+<Tabs>
+<TabItem value='dql' label='DynamoQL'>
+
+```ts 
+import { Schema } from "dynamoql";
+import { randomUUID } from "crypto";
+
+ const userSchema = new Schema({
+  id: {
+    type: String,
+    primaryIndex: true,
+    default: randomUUID
+  },
+  // highlight-next-line
+  order: Date,
+  createdDate: {
+    // highlight-next-line
+    type: Date,
+  }
+} as const);
+```
+
+
+</TabItem>
+
+<TabItem value='ts' label='produced type'>
+
+```ts 
+interface IUserSchema {
+    id: string,
+    order: Date,
+    createdDate?: Date
+}
+ ```
+
+</TabItem>
+
+</Tabs>
+
+
+:::warning
+
+Never use `Date` type in `union` type which already includes `Number` type.  
+`Date` being stored as number, predicting the correct type is not possible and will lead to unexpected behaviour.
+
+```ts 
+import { Schema } from "dynamoql";
+import { randomUUID } from "crypto";
+
+const userSchema = new Schema({
+  id: {
+    type: String,
+    primaryIndex: true,
+    default: randomUUID
+  },
+  // err
+  order: [Number, Date], // this is bad!
+} as const);
+```
+
+:::
+
+
+### Options
+
+ ### - primaryIndex 
+    **top-level only**  
+
+boolean which markes attribute as HASH key and makes attribute as required, default is `false`.  
+A Schema can have only one primaryIndex.
+
+```ts 
+import { Schema } from "dynamoql";
+
+ const userSchema = new Schema({
+  id: {
+    type: Date,
+    // highlight-next-line
+    primaryIndex: true,
+  },
+} as const);
+```
+
+    ### - sortKey 
+    **top-level only**  
+
+boolean which markes attribute as RANGE key and makes attribute as required, default is `false`.  
+A Schema can have only one sortKey.
+
+```ts 
+import { Schema } from "dynamoql";
+
+ const userSchema = new Schema({
+  createdDate: {
+    type: Date,
+    primaryIndex: true,
+  },
+  lastLogin: {
+    type: Date,
+    // highlight-next-line
+    sortKey: true
+  }
+} as const);
+ ```
+
+
+    ### - LSI
+**top-level only**  
+
+defines a Local Secondary Index.  
+
+LSI option is an object where you must provide:
+    - `indexName` which should be unique across the Schema.  
+    - `project` which may be `ALL` | `KEYS` or  string[] where strings are attriubute names defined in the Schema. 
+
+```ts 
+import { Schema } from "dynamoql";
+
+const userSchema = new Schema({
+  id: {
+    type: String,
+    primaryIndex: true,
+  },
+  age: {
+    type: Date,
+    // highlight-start
+    LSI: {
+        indexName: "age-index",
+        project: "ALL"
+    }
+    // highlight-end
+  }
+} as const);
+```
+
+   ### - GSI
+**top-level only**  
+
+defines a Global Secondary Index.  
+
+GSI option is an object where you must provide:
+    - `indexName` which should be unique across the Schema.  
+    - `project` which may be `ALL` | `KEYS` or  string[] where strings are attriubute names defined in the Schema. 
+
+
+```ts 
+import { Schema } from "dynamoql";
+
+ const userSchema = new Schema({
+  id: {
+    type: String,
+    primaryIndex: true,
+  },
+  age: {
+    type: Date,
+    // highlight-start
+    GSI: {
+        indexName: "age-index",
+        project: "ALL"
+    }
+    // highlight-end
+  }
+} as const);
+```
+
+for composite table (HASH and RANGE) you must provide another attribute with GSI:
+    - `indexName` which must be one of defined GSI indexName.
+    - `sortKey` true. 
+
+
+```ts 
+import { Schema } from "dynamoql";
+
+ const userSchema = new Schema({
+  id: {
+    type: String,
+    primaryIndex: true,
+  },
+  age: {
+    type: Date,
+    GSI: {
+        // highlight-next-line
+        indexName: "age-index",
+        project: "ALL"
+    }
+  },
+  order: {
+    type: Date,
+    GSI: {
+          // highlight-start
+        indexName: "age-index",
+        sortKey: true
+        // highlight-end
+    }
+  }
+} as const);
+```
+
+
+    ### - required 
+boolean which makes attribute as required or optionnal, default is `false` when type is defined with an Object.
+
+```ts 
+import { Schema } from "dynamoql";
+import { randomUUID } from "crypto";
+
+ const userSchema = new Schema({
+  id: {
+    type: String,
+    primaryIndex: true,
+    default: randomUUID
+  },
+  createdDate: {
+    type: Date,
+    // highlight-next-line
+    required: true
+  }
+} as const);
+ ```
+
+
+    ### - default
+To set a default value for an attribute use `default` option.
+
+```ts 
+import { Schema } from "dynamoql";
+import { randomUUID } from "crypto";
+
+ const userSchema = new Schema({
+  id: {
+    type: String,
+    primaryIndex: true,
+    default: randomUUID
+  },
+  createdDate: {
+    type: Date,
+    // highlight-next-line
+    default: new Date("2023")
+  }
+} as const);
+ ```
+
+ With this configuration when you `put` an Item into your table, your Item will contain createdDate attribute with new Date("2023").getTime() returned value.
+
+ `default` must be a valid date.  
+ Otherwise it will throw an error during dev time and runtime.
+
+ ```ts 
+import { Schema } from "dynamoql";
+import { randomUUID } from "crypto";
+
+ const userSchema = new Schema({
+  id: {
+    type: String,
+    primaryIndex: true,
+    default: randomUUID
+  },
+  createdDate: {
+    type: Date,
+    // err
+    default: "some-createdDate" // DynamoQLInvalidTypeException: "createdDate" expected to be "N" received "S".
+  }
+} as const);
+ ```
+
+ `default` can also be a (async) function which accepts one argument (put Item value) and must return a Date.
+
+  ```ts 
+import { Schema } from "dynamoql";
+import { randomUUID } from "crypto";
+
+const userSchema = new Schema({
+  id: {
+    type: String,
+    primaryIndex: true,
+    default: randomUUID
+  },
+  moderator: Boolean,
+  createdDate: {
+    type: Date,
+    // highlight-next-line
+    default: Date.now
+  },
+  updatedDate: {
+    type: Date,
+    // highlight-start
+    default: (item: Record<string, any>)=> {
+      if(item.someCondition) {
+        return new Date("2014")
+      }
+    }
+    // highlight-end
+  }
+} as const)
+```
+
+
+
+    ### - format
+    directive to store date as JS `timestamp` (with milliseconds) or as `EPOCH` (without milliseconds).  
+    `EPOCH` is specialy usefull when working with DynamoDB TTL.  
+    default value is `timestamp`
+
+```ts 
+import { Schema } from "dynamoql";
+import { randomUUID } from "crypto";
+
+ const userSchema = new Schema({
+  id: {
+    type: String,
+    primaryIndex: true,
+    default: randomUUID
+  },
+  ttl: {
+    type: Date,
+     // highlight-next-line
+    format: "EPOCH",
+    default: ()=> {
+        const deleteDate = new Date();
+        deleteDate.setFullYear(deleteDate.getFullYear() + 2)
+
+        return deleteDate
+    }
+  }
+} as const);
+```
+With the example above, when you put in an Item, your Item will be deleted after 2 years if TTL is enabled for your Table.
+
+
+
+    ### - validate
+
+validate option allows you to manually validate provided value in `put` and `update` commands.  
+To return an error you should return a string which explains value invalidity. Any other returned value is considered as valid.
+
+  ```ts 
+import { Schema } from "dynamoql";
+import { randomUUID } from "crypto";
+
+ const userSchema = new Schema({
+  id: {
+    type: String,
+    primaryIndex: true,
+    default: randomUUID
+  },
+  moderator: Boolean,
+  createdDate: {
+    type: Date,
+    // highlight-start
+    validate: (self: Date)=> {
+        if(self > new Date("2019")) {
+            return "Can not be greater than 2019."
+        }
+    }
+    // highlight-end
+  }
+} as const);
+ ```
+
+
+    ### - min
+
+    define minimum accepted value.
+
+  ```ts 
+import { Schema } from "dynamoql";
+import { randomUUID } from "crypto";
+
+ const userSchema = new Schema({
+  id: {
+    type: String,
+    primaryIndex: true,
+    default: randomUUID
+  },
+  moderator: Boolean,
+  createdDate: {
+    type: Date,
+     // highlight-next-line
+    min: new Date("2015")
+  }
+} as const);
+ ```   
+
+
+    ### - max
+
+    define maximum accepted value.
+
+  ```ts 
+import { Schema } from "dynamoql";
+import { randomUUID } from "crypto";
+
+ const userSchema = new Schema({
+  id: {
+    type: String,
+    primaryIndex: true,
+    default: randomUUID
+  },
+  moderator: Boolean,
+  createdDate: {
+    type: Date,
+     // highlight-next-line
+    max: new Date("2034")
+  }
+} as const);
+ ```   
+
+    ### - set
+
+To modify a value before storing it use `set` option.  
+set (async) function accepts 3 arguments:
+    1. `self` provided value.
+    2. `item` entier put Item object.
+    3. `setterInfo` an optionnal value provided inside in put, batchPut, batchWrite, transactWrite command's options.
+
+`set` will not be called if attribute doesn't exists in put Item object.
+
+
+  ```ts 
+import { Schema } from "dynamoql";
+import { randomUUID } from "crypto";
+
+ const userSchema = new Schema({
+  id: {
+    type: String,
+    primaryIndex: true,
+    default: randomUUID
+  },
+  deleted: Boolean,
+  ttl: {
+    type: Date,
+    // highlight-start
+    set: (self: Date, item: Record<string, any>, setterInfo?: any)=> {
+
+        if(item.deleted) {
+         const deleteDate = new Date();
+          deleteDate.setFullYear(deleteDate.getFullYear() + 2)
+
+        return deleteDate
+        }
+
+        return undefined
+    }
+    // highlight-end
+  }
+} as const);
+ ```
+
+    ### - get
+
+When reteving an Item we can transform field's value with get option.  
+
+get (async) function accepts 3 arguments:
+    1. `self` retrieved value.
+    2. `item` entier retrieved Item object.
+    3. `getterInfo` an optionnal value provided inside get, batchGet, transactGet, query, scan command's options.
+
+
+`get` can return anything.  
+`get` will not be called if attribute doesn't exists in stored Item.
+
+```ts 
+import { Schema } from "dynamoql";
+import { randomUUID } from "crypto";
+
+ const userSchema = new Schema({
+  id: {
+    type: String,
+    primaryIndex: true,
+    default: randomUUID
+  },
+  moderator: Boolean,
+  birthday: {
+    type: Date,
+    // highlight-start
+    get: (self: Date, item: Record<string, any>, getterInfo?: any)=> {
+        if(getterInfo.forFrontend) {
+            return self.toISOString()
+        }
+         return self
+    }
+    // highlight-end
+  }
+} as const);
+```
+
+:::info
+
+`get` returned value's type affects Item type when retriving Item(s) from DynamoDB. 
+
+:::
+
+
+  ### - description
+  add any information to the Schema for your personal usage.
+
+
+### Condition expression 
+
+
+Same as [Number Condition expression](./Number#condition-expression) except provided values may be any valid date value like:  
+
+  - new Date()
+  - "2018-06-18"
+  -  1529280000000
+
+
+:::warning
+
+In some case TS will report `$startsWith` as valid condition, because `Date` accepts also strings.  
+`$startsWith` is invalid for `Date` and will lead to runtime error. You must avoid using it for dates.
+
+:::
+
+
+
+
+### Update expressions 
+
+Like Condition expression, Update expressions are not part of Schema, but they are based on defined Schema.  
+Update expressions are used in `update`, `transactUpdate` and `transactWrite` operations.  
+DynamoQL supports all DynamoDB update operations.
+
+:::info
+
+All update expressions accept any valid date value.  
+You dont need to worry about date format (timestamp/EPOCH).
+
+:::
+
+  ### - set
+
+`$set` replaces stored date by provided date.
+
+```json
+{
+  birthday: {
+    // highlight-next-line
+    $set: new Date("1987")
+  }
+}
+```
+
+shorthand version is
+
+```json
+{
+  birthday: new Date("1987")
+}
+```
+
+
+  ### - if not exists
+
+`$ifNotExists` sets provided date if attribute do not exists in stored item.  
+`$ifNotExists` dont affects Condition expression and is attribute specific.  
+If attribute exists, stored value stays unchanged.
+
+
+```json
+{
+  birthday: {
+    // highlight-next-line
+    $ifNotExists: new Date("1987")
+  }
+}
+```
+
+  ### - increase / decrease
+
+DynamoQL allows you to increase or decrease date (number) attribute value without knowing stored value.  
+
+```json
+{
+  expire: {
+    // highlight-next-line
+    $date: {
+      year: {
+        $incr: 2
+      },
+      month: {
+        $incr: 1
+      }
+    }
+  }
+}
+```
+
+`$date` operation allows you to increase / decrease by `year`, `month`, `day`, `hour` and `minute`.
+
+Based on your provided [format](#--format) DynamoQL will convert provided number to corresponding time in secondes/milliseconds then generate increase decrease / operation for DynamoDB.
+
+Heres multiplication table which DynamoQL is relying on:
+
+|        | timestamp | EPOCH |
+| ------ | ------- | ------  |
+| year   | 3.154e10| 3.154e7 |
+| month  | 2.628e9 | 2.628e6 |
+| day    | 8.64e7  | 86400   |
+| hour   | 3.6e6   | 3600    |
+| minute | 60000   | 60      |
+
+
+increase/decrease operation are exact for minute, hour, day, but not for month and year as possible days in a month are 28, 29 for February and 30, 31 for other months.
+
+:::warning
+
+If you need to update second/milliseconde precise value then you should `get` the value from DynamoDB then use `$set` operation.
+
+:::
+
+:::tip[DynamoDB TTL]
+
+`$date` operation are 'safe' when working with DynamoDB TTL, because TTL typically deletes expired items within a [few days](https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/howitworks-ttl.html) and ignores TTL values more than 5 years older than the current time.
+
+:::

@@ -1,0 +1,152 @@
+
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+
+
+Schema class is essentially for DynamoQL internal usage, however it exposes some usefull properties and methods in case you look for them.
+
+
+
+for our examples we are using this Schema defintion.
+
+<Tabs>
+<TabItem value='dql' label='DynamoQL'>
+
+```ts
+import { Schema } from "dynamoql";
+
+const messageSchema = new Schema({
+  conversationId: {
+    type: Number,
+    primaryIndex: true,
+  },
+  messageId: {
+    type: Date,
+    format: "timestamp",
+    sortKey: true
+  },
+  text: String,
+  author: {
+    type: Object,
+    fields: {
+        id: String,
+        nickname: String,
+        socialNetwork: {
+            type: Array,
+            items: {
+                type: Object,
+                fields: {
+                    url: String,
+                    label: {
+                        type: String,
+                        required: true,
+                        enum: ["X", "Facebook", "Instagram"]
+                    }
+                }
+            }
+        }
+    }
+  },
+  response: {
+    type: Set,
+    items: String
+  }
+} as const);
+```
+
+</TabItem>
+
+
+<TabItem value='ts' label='produced type'>
+
+```ts
+interface ISocialNetwork {
+    url: string;
+    label: "X" | "Facebook" | "Instagram"
+}
+
+
+interface IMessage {
+    conversationId: number;
+    messageId: number;
+    text: string;
+    author: {
+        id: string:
+        nickname: string;
+        socialNetwork: ISocialNetwork[]
+    },
+    response?: Set<string>
+}
+```
+
+</TabItem>
+
+
+</Tabs>
+
+
+### marshallPk
+
+This method is specially usefull when working with indices with Date type.
+
+Schema.prototype.marshallPk takes one argument:
+    - of type String, Number or Buffer, Date, depending on your `primaryIndex`, in our example its a Number.
+```ts
+const marshalledPk = messageSchema.marshallPk(237190);
+
+// returns
+marshalledPk = {
+    conversationId: {
+        N: 237190
+    }
+}
+```
+
+
+    - or a JS object which includes your `primaryIndex` and optionnally `sortKey`.
+
+```ts
+const marshalledPk = messageSchema.marshallPk({
+     conversationId: 237190,
+     messageId: "2023-12-18T13:12:34.797Z"
+     });
+
+// returns
+marshalledPk = {
+    conversationId: {
+        N: 237190
+    },
+    messageId: {
+        N: 1702905154797
+    }
+}
+```
+
+
+
+### getTypeFromKeyPath
+
+This method allows you to find type declaration object with a key-path.
+
+```ts
+const fieldType = messageSchema.getTypeFromKeyPath("conversationId");
+
+// returns
+fieldType = {
+    type: "N",
+    primaryIndex: true,
+    required: true
+}
+```
+
+
+```ts
+const fieldType = messageSchema.getTypeFromKeyPath("author.socialNetwork[2].label");
+
+// returns
+fieldType = {
+    type: "S",
+    required: true,
+    enum: ["X", "Facebook", "Instagram"]
+}
+```

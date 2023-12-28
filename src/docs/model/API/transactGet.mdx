@@ -1,0 +1,124 @@
+### Introduction
+`transactGet` method performs transact Get request using aws-sdk [TransactGetItemsCommand](https://docs.aws.amazon.com/AWSJavaScriptSDK/v3/latest/client/dynamodb/command/TransactGetItemsCommand/).
+
+
+### execute
+
+`transactGet` takes 2 arguments:
+
+    1. (required) an array of item identifier:
+        - item identifier can be `primaryIndex`
+        - if table is HASH and RANGE table, item identifier must be an object with `primaryIndex` and `sortKey`.
+    2. [options](#options) (optionnal)
+
+
+```ts
+const res = await User.transactGet(
+  [ "user-1", "user-2" ],
+  { ReturnConsumedCapacity: "TOTAL" }
+);
+```
+
+or
+
+```ts
+const res = await User.transactGet(
+  [
+    {
+      id: "user-1",
+    },
+    {
+      id: "user-2",
+    }
+  ],
+  { ReturnConsumedCapacity: "TOTAL" }
+);
+```
+
+
+### options
+
+`options` is an object which accepts `TransactGetItemsInput` options and DynamoQL specific options.
+
+
+    #### exec
+    `exec` boolean directive to execute or not the actual request.
+
+
+```ts
+import type { TransactGetItemsInput } from "@aws-sdk/client-dynamodb";
+
+const cmd: TransactGetItemsInput = await User.transactGet(
+  [ "user-1", "user-2" ],
+  // highlight-next-line
+  { exec: false }
+);
+```
+
+    #### Select
+
+
+`Select` accepts an array of attributes and produces a `ProjectionExpression`.
+
+
+```ts
+const res = await User.transactGet(
+  ["user-1", "user-2"],
+  // highlight-next-line
+  { Select: ["id", "isActive"] }
+);
+
+```
+
+
+:::note
+
+`Select` affects returned `Items` type.
+
+```ts
+const { Items } = await User.transactGet(["user-1", "user-2"], { Select: ["id", "isActive"] });
+
+// err
+Items[0].firstname; // Property 'firstname' does not exist on type { id: string; isActive?:boolean } ...
+```
+
+:::
+
+
+To apply `Select` individually for each item, passe an object with `$key` and `$select`:
+
+
+```ts
+const res = await User.transactGet([
+  {
+    // highlight-next-line
+    $key: {
+      id: "user-1",
+    },
+    // highlight-next-line
+    $select: ["firstname"],
+  },
+  {
+    // highlight-next-line
+    $key: {
+      id: "user-2",
+    },
+    // highlight-next-line
+    $select: ["age"],
+  },
+]);
+```
+
+
+
+    #### getterInfo
+
+`getterInfo` allows you to pass any value to your Schema [get](/docs/schema/data-types/String#--get) function's third argument.
+
+```ts
+const res = await User.transactGet(
+  ["user-1", "user-2"],
+  // highlight-next-line
+  { getterInfo: { forFrontend: true } }
+);
+```    

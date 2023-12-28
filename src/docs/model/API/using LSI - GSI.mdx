@@ -1,0 +1,107 @@
+### Introduction
+`using` method allows you to perform [query](./query) / [scan](./scan) request on LSI and GSI.
+
+
+
+### execute
+
+`using` takes 1 index/table name and returns on object containing `query` and `scan` methods.  
+index/table name must be defined in Schema under [LSI](/docs/schema/data-types/String#--lsi) / [GSI](/docs/schema/data-types/String#--gsi).  
+Condition expression and Select depends on index / table projected value.
+
+
+
+
+```ts
+const res = await User.using("group-index").query(
+  {
+    groupId: "group-1",
+    age: {
+      $gt: 21,
+    },
+  },
+  {
+    Limit: 5,
+  }
+);
+```
+
+
+
+### options
+
+`options` is an object which accepts `QueryCommandInput` / `ScanCommandInput` options and DynamoQL specific options.
+
+
+    #### exec
+    `exec` boolean directive to execute or not the actual request.  
+    When `false` update will return `QueryCommandInput` / `ScanCommandInput` object.
+
+
+```ts
+import type { QueryCommandInput } from "@aws-sdk/client-dynamodb";
+
+const cmd: QueryCommandInput = await User.using("group-index").query(
+  {
+    groupId: "group-1",
+    age: {
+      $gt: 21,
+    },
+  },
+   // highlight-next-line
+  { exec: false }
+);
+```
+
+ #### Select
+
+`Select` accepts an array of projected attributes and produces a `ProjectionExpression`, `"ALL"` | `"KEYS"` `"COUNT"`.
+
+
+```ts
+await User.using("group-index").query(
+  {
+    groupId: "group-1",
+  },
+  // highlight-next-line
+  { Select: ["id", "isActive"] }
+);
+```
+
+
+:::note
+
+`Select` affects returned `Items` type.
+
+```ts
+const { Items } = await User.using("group-index").query(
+  {
+    groupId: "group-1",
+  },
+  // highlight-next-line
+  { Select: ["id", "isActive"] }
+);
+
+// err
+Items[0]?.firstname; // Property 'firstname' does not exist on type { id: string; isActive?:boolean } ...
+```
+
+:::
+
+
+    #### getterInfo
+
+`getterInfo` allows you to pass any value to your Schema [get](/docs/schema/data-types/String#--get) function's third argument.
+
+```ts
+const res = await User.using("group-index").query(
+  {
+    groupId: "group-1",
+    age: {
+      $gt: 21,
+    },
+  },
+  // highlight-next-line
+  { getterInfo: { forFrontend: true } }
+);
+```

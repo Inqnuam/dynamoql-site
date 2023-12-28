@@ -1,0 +1,789 @@
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+
+### Introduction
+
+`Number` is DynamoDB's Number data type (marshalled as "N") for DynamoQL.
+
+
+### Define a Number
+<Tabs>
+<TabItem value='dql' label='DynamoQL'>
+
+```ts 
+import { Schema } from "dynamoql";
+import { randomUUID } from "crypto";
+
+ const userSchema = new Schema({
+  id: {
+    type: String,
+    primaryIndex: true,
+    default: randomUUID
+  },
+  // highlight-next-line
+  order: Number,
+  score: {
+    // highlight-next-line
+    type: Number,
+  }
+} as const);
+```
+
+
+</TabItem>
+
+<TabItem value='ts' label='produced type'>
+
+```ts 
+interface IUserSchema {
+    id: string,
+    order: number,
+    score?: number
+}
+```
+
+</TabItem>
+
+</Tabs>
+
+
+### Options
+
+ ### - primaryIndex 
+    **top-level only**  
+
+boolean which markes attribute as HASH key and makes attribute as required, default is `false`.  
+A Schema can have only one primaryIndex.
+
+```ts 
+import { Schema } from "dynamoql";
+
+ const userSchema = new Schema({
+  id: {
+    type: Number,
+    // highlight-next-line
+    primaryIndex: true,
+  },
+} as const);
+```
+
+    ### - sortKey 
+    **top-level only**  
+
+boolean which markes attribute as RANGE key and makes attribute as required, default is `false`.  
+A Schema can have only one sortKey.
+
+```ts 
+import { Schema } from "dynamoql";
+
+ const userSchema = new Schema({
+  countryCode: {
+    type: Number,
+    primaryIndex: true,
+  },
+  cityCode: {
+    type: Number,
+    // highlight-next-line
+    sortKey: true
+  }
+} as const);
+ ```
+
+
+    ### - LSI
+**top-level only**  
+
+defines a Local Secondary Index.  
+
+LSI option is an object where you must provide:
+    - `indexName` which should be unique across the Schema.  
+    - `project` which may be `ALL` | `KEYS` or  string[] where strings are attriubute names defined in the Schema. 
+
+```ts 
+import { Schema } from "dynamoql";
+
+ const userSchema = new Schema({
+  id: {
+    type: String,
+    primaryIndex: true,
+  },
+  age: {
+    type: Number,
+    // highlight-start
+    LSI: {
+        indexName: "age-index",
+        project: "ALL"
+    }
+    // highlight-end
+  }
+} as const);
+```
+
+   ### - GSI
+**top-level only**  
+
+defines a Global Secondary Index.  
+
+GSI option is an object where you must provide:
+    - `indexName` which should be unique across the Schema.  
+    - `project` which may be `ALL` | `KEYS` or  string[] where strings are attriubute names defined in the Schema. 
+
+
+```ts 
+import { Schema } from "dynamoql";
+
+ const userSchema = new Schema({
+  id: {
+    type: String,
+    primaryIndex: true,
+  },
+  age: {
+    type: Number,
+    // highlight-start
+    GSI: {
+        indexName: "age-index",
+        project: "ALL"
+    }
+    // highlight-end
+  }
+} as const);
+```
+
+for composite table (HASH and RANGE) you must provide another attribute with GSI:
+    - `indexName` which must be one of defined GSI indexName.
+    - `sortKey` true. 
+
+
+```ts 
+import { Schema } from "dynamoql";
+
+ const userSchema = new Schema({
+  id: {
+    type: String,
+    primaryIndex: true,
+  },
+  age: {
+    type: Number,
+    GSI: {
+        // highlight-next-line
+        indexName: "age-index",
+        project: "ALL"
+    }
+  },
+  order: {
+    type: Number,
+    GSI: {
+          // highlight-start
+        indexName: "age-index",
+        sortKey: true
+        // highlight-end
+    }
+  }
+} as const);
+```
+
+
+    ### - required 
+boolean which makes attribute as required or optionnal, default is `false` when type is defined with an Object.
+
+```ts 
+import { Schema } from "dynamoql";
+import { randomUUID } from "crypto";
+
+ const userSchema = new Schema({
+  id: {
+    type: String,
+    primaryIndex: true,
+    default: randomUUID
+  },
+  score: {
+    type: Number,
+    // highlight-next-line
+    required: true
+  }
+} as const);
+```
+
+
+    ### - default
+To set a default value for an attribute use `default` option.
+
+```ts 
+import { Schema } from "dynamoql";
+import { randomUUID } from "crypto";
+
+ const userSchema = new Schema({
+  id: {
+    type: String,
+    primaryIndex: true,
+    default: randomUUID
+  },
+  score: {
+    type: Number,
+    // highlight-next-line
+    default: 5
+  }
+} as const);
+```
+
+ With this configuration when you `put` an Item into your table, your Item will contain score attribute with 5 as value.
+
+ `default` must be a Number.  
+ Otherwise it will throw an error during dev time and runtime.
+
+```ts 
+import { Schema } from "dynamoql";
+import { randomUUID } from "crypto";
+
+ const userSchema = new Schema({
+  id: {
+    type: String,
+    primaryIndex: true,
+    default: randomUUID
+  },
+  score: {
+    type: Number,
+    // err
+    default: "some-score" // DynamoQLInvalidTypeException: "score" expected to be "N" received "S".
+  }
+} as const);
+```
+
+ `default` can also be a (async) function which accepts one argument (put Item value) and must return a number.
+
+```ts 
+import { Schema } from "dynamoql";
+import { randomUUID } from "crypto";
+
+ const userSchema = new Schema({
+  id: {
+    type: String,
+    primaryIndex: true,
+    default: randomUUID
+  },
+  // highlight-next-line
+  moderator: Boolean,
+  score: {
+    type: Number,
+    // highlight-start
+    default: (item: Record<string, any>)=> {
+        if(item.moderator) {
+            return 5
+        }
+        return []
+    }
+    // highlight-end
+  }
+} as const);
+```
+
+    ### - validate
+
+validate option allows you to manually validate provided value in `put` and `update` commands.  
+To return an error you should return a string which explains value invalidity. Any other returned value is considered as valid.
+
+```ts 
+import { Schema } from "dynamoql";
+import { randomUUID } from "crypto";
+
+const userSchema = new Schema({
+  id: {
+    type: String,
+    primaryIndex: true,
+    default: randomUUID
+  },
+  moderator: Boolean,
+  score: {
+    type: Number,
+    // highlight-start
+    validate: (self: number)=> {
+        if(self > 10) {
+            return "Can not be greater than 10."
+        }
+    }
+    // highlight-end
+  }
+} as const);
+```
+
+
+    ### - min
+
+    define minimum accepted value.
+
+  ```ts 
+import { Schema } from "dynamoql";
+import { randomUUID } from "crypto";
+
+const userSchema = new Schema({
+  id: {
+    type: String,
+    primaryIndex: true,
+    default: randomUUID
+  },
+  moderator: Boolean,
+  score: {
+    type: Number,
+     // highlight-next-line
+    min: 1
+  }
+} as const);
+ ```   
+
+
+    ### - max
+
+    define maximum accepted value.
+
+  ```ts 
+import { Schema } from "dynamoql";
+import { randomUUID } from "crypto";
+
+ const userSchema = new Schema({
+  id: {
+    type: String,
+    primaryIndex: true,
+    default: randomUUID
+  },
+  moderator: Boolean,
+  score: {
+    type: Number,
+     // highlight-next-line
+    max: 89
+  }
+} as const);
+ ```   
+
+    ### - enum
+
+    define accepted values.
+
+  ```ts 
+import { Schema } from "dynamoql";
+import { randomUUID } from "crypto";
+
+const userSchema = new Schema({
+  id: {
+    type: String,
+    primaryIndex: true,
+    default: randomUUID
+  },
+  moderator: Boolean,
+  score: {
+    type: Number,
+     // highlight-next-line
+    enum: [1234, 789,]
+  }
+} as const);
+ ```
+
+    ### - set
+
+To modify a value before storing it use `set` option.  
+set (async) function accepts 3 arguments:
+    1. `self` provided value.
+    2. `item` entier put Item object.
+    3. `setterInfo` an optionnal value provided inside in put, batchPut, batchWrite, transactWrite command's options.
+
+`set` will not be called if attribute doesn't exists in put Item object.
+
+
+```ts 
+import { Schema } from "dynamoql";
+import { randomUUID } from "crypto";
+
+const userSchema = new Schema({
+  id: {
+    type: String,
+    primaryIndex: true,
+    default: randomUUID
+  },
+  moderator: Boolean,
+  score: {
+    type: Number,
+    // highlight-start
+    set: (self: number, item: Record<string, any>, setterInfo?: any)=> {
+
+        if(item.moderator && setterInfo?.someCondition) {
+         return 12345
+        }
+
+        return self
+    }
+    // highlight-end
+  }
+} as const);
+```
+
+    ### - get
+
+When reteving an Item we can transform field's value with get option.  
+
+get (async) function accepts 3 arguments:
+    1. `self` retrieved value.
+    2. `item` entier retrieved Item object.
+    3. `getterInfo` an optionnal value provided inside get, batchGet, transactGet, query, scan command's options.
+
+
+`get` can return anything.  
+`get` will not be called if attribute doesn't exists in stored Item.
+
+```ts 
+import { Schema } from "dynamoql";
+import { randomUUID } from "crypto";
+
+const userSchema = new Schema({
+  id: {
+    type: String,
+    primaryIndex: true,
+    default: randomUUID
+  },
+  moderator: Boolean,
+  score: {
+    type: Number,
+    // highlight-start
+    get: (self: number, item: Record<string, any>, getterInfo?: any)=> {
+        if(getterInfo.someCondition) {
+            return {
+                level: 4,
+                label: "Good!"
+            }
+        }
+         return self
+    }
+    // highlight-end
+  }
+} as const);
+```
+
+:::info
+
+`get` returned value's type affects Item type when retriving Item(s) from DynamoDB. 
+
+:::
+
+
+  ### - description
+  add any information to the Schema for your personal usage.
+
+
+### Condition expression 
+
+Condition expression are not part of Schema but they are based on your defined Schema.  
+They are used in various DynamoDB operations to check for some condition(s).  
+DynamoQL supports all DynamoDB Condition expression.
+
+
+
+ ### - equals
+  
+```json
+{
+  score: 78
+}
+```
+
+or 
+
+```json
+{
+  score: {
+    // highlight-next-line
+    $eq: 78
+  }
+}
+```
+
+  ### - not equals
+
+```json
+{
+  score: {
+    // highlight-next-line
+    $neq: 78
+  }
+}
+```
+
+  ### - attribute exists
+
+`$exists` can be `true` or `false`.
+
+```json
+{
+  score: {
+    // highlight-next-line
+    $exists: true
+  }
+}
+```
+
+### - attribute type
+
+Checks for stored attribute type.
+
+```json
+{
+  score: {
+    // highlight-next-line
+    $type: Number
+  }
+}
+```
+`$type` can be String, Number, Boolean, Null, Buffer, Object, Array, or `{type: Set, items: String | Number | Buffer }`
+
+
+  ### - in
+
+Checks if provided array includes stored number.
+
+
+```json
+{
+  score: {
+    // highlight-next-line
+    $in: ["Steve", 214, "Sara", false, null, "John", true, "Mike",]
+  }
+}
+``` 
+
+
+  ### - greather than
+
+`$gt` compares if stored number is greather than provided value.
+
+```json
+{
+  score: {
+    // highlight-next-line
+    $gt: 5
+  }
+}
+``` 
+  ### - greather than or equal
+
+`$gte` compares if stored number is greather than or equal provided value.
+
+```json
+{
+  score: {
+    // highlight-next-line
+    $gte: 5
+  }
+}
+``` 
+
+
+  ### - little than
+
+`$lt` compares if stored number is little than provided value.
+
+```json
+{
+  score: {
+    // highlight-next-line
+    $lt: 5
+  }
+}
+``` 
+
+  ### - little than or equal
+
+`$lte` compares if stored number is little than or equal provided value.
+
+```json
+{
+  score: {
+    // highlight-next-line
+    $lte: 5
+  }
+}
+```
+
+
+
+  ### - between
+
+`$between` compares if stored number is greather than or equal `value1` AND is little than or equal `value2`.
+
+```json
+{
+  score: {
+    // highlight-next-line
+    $between: [value1, value2]
+  }
+}
+``` 
+
+
+
+
+  ### - AND
+
+Checks for multiple conditions. Condition is valid if ALL specified conditions are satisfied.
+
+```json
+{
+  score: {
+    // highlight-start
+    $and: [
+      {
+        $lt: 100
+      },
+      {
+        $gt: 87
+      }
+    ]
+    // highlight-end
+  }
+}
+```
+
+shorthand style
+
+```json
+{
+  score: {
+    $lt: 100,
+    $gt: 87
+  }
+}
+```
+
+  ### - OR
+
+Checks for multiple conditions. Condition is valid if at least one of specified conditions is satisfied.
+
+```json
+{
+  score: {
+    // highlight-start
+    $or: [
+      {
+        $eq: 6
+      },
+      {
+        $lt: 4
+      }
+    ]
+     // highlight-end
+  }
+}
+```
+
+  ### - NOT
+
+Condition is valid if specified condition is NOT satisfied.
+
+```json
+{
+  score: {
+    // highlight-start
+    $not: {
+      $gt: 3
+    }
+    // highlight-end
+  }
+}
+```
+
+`$not` accepts any Condition expression.
+
+When multiple conditions are provided inside $not: \{\} they are considered as $and condition.
+
+```json
+{
+  score: {
+    $not: {
+      // highlight-start
+      $eq: 6,
+      $gt: 8
+      // highlight-end
+    }
+  }
+}
+```
+
+longhand equivalent is:
+
+```json
+{
+  score: {
+    $not: {
+      // highlight-start
+      $and: [
+        {
+          $eq: 6
+        },
+        {
+          $gt: 8
+        }
+      ]
+      // highlight-end
+    }
+  }
+}
+```
+
+
+
+### Update expressions 
+
+Like Condition expression, Update expressions are not part of Schema, but they are based on defined Schema.
+
+Update expressions are used in `update`, `transactUpdate` and `transactWrite` operations.
+
+DynamoQL supports all DynamoDB update operations.
+
+
+  ### - set
+
+`$set` replaces stored number by provided number.
+
+```json
+{
+  score: {
+    // highlight-next-line
+    $set: 78
+  }
+}
+```
+
+shorthand version is
+
+```json
+{
+  score: 78
+}
+```
+
+
+  ### - if not exists
+
+`$ifNotExists` sets provided number if attribute do not exists in stored item.  
+`$ifNotExists` dont affects Condition expression and is attribute specific.  
+If attribute exists, stored value stays unchanged.
+
+
+```json
+{
+  score: {
+    // highlight-next-line
+    $ifNotExists: 78
+  }
+}
+```
+
+  ### - increase
+
+
+`$incr` increases stored number by provided number.
+
+```json
+{
+  score: {
+    // highlight-next-line
+    $incr: 10
+  }
+}
+``` 

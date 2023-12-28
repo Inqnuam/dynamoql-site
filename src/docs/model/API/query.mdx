@@ -1,0 +1,124 @@
+### Introduction
+`query` method performs query request using aws-sdk [QueryCommand](https://docs.aws.amazon.com/AWSJavaScriptSDK/v3/latest/client/dynamodb/command/QueryCommand/).
+
+`Items` in QueryCommandOutput is fully typed based on your Schema declaration.
+
+
+### execute
+
+`query` takes 2 arguments:
+
+    1. (required) an object which includes:
+        - item `primaryIndex`
+        - optionnally KeyConditionExpression
+        - optionnally [Condition expression](/docs/schema/data-types/String#condition-expression) which will perform `FilterExpression`
+    2. [options](#options) (optionnal)
+
+
+
+```ts
+const res = await User.query(
+  {
+    groupId: "group-1", // Schema primaryIndex
+     // Schema sortKey
+    userId: {
+      $startsWith: "user-",
+    },
+    // FilterExpression
+    age: { 
+        $gt: 22 
+    }
+  },
+  { ReturnConsumedCapacity: "TOTAL" }
+);
+
+res.Items[0].firstname;
+```
+
+
+
+
+### options
+
+`options` is an object which accepts `QueryCommandInput` options and DynamoQL specific options.
+
+
+    #### exec
+    `exec` boolean directive to execute or not the actual request.  
+    When `false` query will return `QueryCommandInput` object.
+
+
+```ts
+import type { QueryCommandInput } from "@aws-sdk/client-dynamodb";
+
+const cmd: QueryCommandInput = await User.query(
+  {
+    groupId: "group-1"
+  },
+  // highlight-next-line
+  { exec: false }
+);
+```
+
+    #### Select
+
+`Select` accepts an array of attributes which produces a `ProjectionExpression`, or `"ALL"` | `"COUNT"`.
+
+
+```ts
+const res = await User.query(
+  {
+    groupId: "group-1"
+  },
+  // highlight-next-line
+  { Select: ["id", "isActive"] }
+);
+
+```
+
+
+:::note
+
+`Select` affects QueryCommandOutput type.
+
+```ts
+const { Items } = await User.query(
+  {
+    groupId: "group-1",
+  },
+  { Select: ["id", "isActive"] }
+);
+
+// err
+Items[0].firstname; // Property 'firstname' does not exist on type { id: string; isActive?:boolean } ...
+```
+
+
+```ts
+const res = await User.query(
+  {
+    groupId: "group-1",
+  },
+  { Select: "COUNT" }
+);
+
+// err
+res.Items; // Property 'Items' does not exist on type QueryCommandOutput
+```
+
+:::
+
+
+    #### getterInfo
+
+`getterInfo` allows you to pass any value to your Schema [get](/docs/schema/data-types/String#--get) function's third argument.
+
+```ts
+const res = await User.query(
+  {
+    groupId: "group-1",
+  },
+  // highlight-next-line
+  { getterInfo: { forFrontend: true } }
+);
+```

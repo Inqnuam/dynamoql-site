@@ -1,0 +1,19 @@
+{
+  "name": "dynamoql-docs",
+  "author": "Inqnuam",
+  "license": "MIT",
+  "homepage": "https://github.com/inqnuam/dynamoql-site",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/inqnuam/dynamoql-site.git"
+  },
+  "scripts": {
+    "postinstall": "cd src && yarn",
+    "build": "cd src && yarn build --out-dir ../docs",
+    "start": "cd src && yarn start",
+    "prepare": "husky install"
+  },
+  "devDependencies": {
+    "husky": "^8.0.3"
+  }
+}

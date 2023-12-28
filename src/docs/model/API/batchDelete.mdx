@@ -1,0 +1,66 @@
+### Introduction
+`batchDelete` method performs batch deletion request using aws-sdk [BatchWriteItemCommand](https://docs.aws.amazon.com/AWSJavaScriptSDK/v3/latest/client/dynamodb/command/BatchWriteItemCommand/).
+
+
+### execute
+
+`batchDelete` takes 2 arguments:
+
+    1. list of Items Key's (required)
+    2. [options](#options) (optionnal)
+
+
+
+```ts
+const res = await User.batchDelete(
+  ["user-1", "user-2", "user-3", "user-4"],
+  { ReturnConsumedCapacity: "TOTAL" }
+);
+```
+
+If your table is a composite table (HASH and RANGE) you must pass `primaryIndex` and `sortKey` as object.
+
+```ts
+const res = await User.batchDelete(
+  [
+    {
+      groupId: "group-1",
+      userId: "user-1",
+    },
+    {
+      groupId: "group-1",
+      userId: "user-2",
+    },
+    {
+      groupId: "group-2",
+      userId: "user-3",
+    },
+    {
+      groupId: "group-2",
+      userId: "user-4",
+    },
+  ],
+  { ReturnConsumedCapacity: "TOTAL" }
+);
+```
+
+
+
+### options
+
+`options` is an object which accepts `BatchWriteItemCommand` options and DynamoQL specific options.
+
+
+    #### exec
+    `exec` boolean directive to execute or not the actual request.
+
+
+```ts
+import type { BatchWriteItemCommandInput } from "@aws-sdk/client-dynamodb";
+
+const cmd: BatchWriteItemCommandInput = await User.batchDelete(
+  ["user-1", "user-2", "user-3", "user-4"],
+  // highlight-next-line
+  { exec: false }
+);
+```

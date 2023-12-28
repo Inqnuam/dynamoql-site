@@ -1,0 +1,147 @@
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+
+
+### Introduction
+The DynamoQL Model class encompasses all the essential DynamoDB commands required for seamless table interaction. With an exceptionally high level of typing, the Model class eliminates the need to constantly switch between tabs in your DynamoDB documentation while working with the database.
+
+When interacting with a table through DynamoQL, the advantages of TypeScript become apparent. You can precisely anticipate what will be written or retrieved from a table even before sending the actual request, alleviating potential headaches associated with data inconsistencies.
+
+The overarching objective of DynamoQL is to enhance the developer experience by providing robust type safety for your items without incurring additional costs.
+
+
+
+### Create a Model
+
+
+To create a `Model` all we need is:
+    - Table name
+    - [Schema](/docs/category/schema)
+    - config for @aws-sdk/client-dynamodb (v3)
+
+```ts
+import { Schema, Model } from "dynamoql";
+
+const userSchema = new Schema({
+  id: {
+    type: String,
+    primaryIndex: true,
+  },
+  age: Number,
+  firstname: {
+    type: String,
+    required: true,
+    capitalize: true
+  },
+  isActive: {
+    type: Boolean,
+  },
+  sex: {
+    type: String,
+    required: true,
+    enum: ["female", "male"],
+  },
+  friends: {
+    type: Array,
+    items: String,
+  },
+  data: [Number, String, { type: Set, items: String }]
+} as const);
+
+const clientConfig = { region: "eu-west-3", endpoint: "http://localhost:8000" };
+
+ // highlight-next-line
+export const User = new Model("user-table", userSchema, clientConfig)
+```
+
+Once defined, your Model instance exposes following methods to interact with your DynamoDB table:
+
+    - [batchDelete](./API/batchDelete)
+    - [batchGet](./API/batchGet)
+    - [batchPut](./API/batchPut)
+    - [batchWrite](./API/batchWrite)
+    - [delete](./API/delete)
+    - [get](./API/get)
+    - [put](./API/put)
+    - [query](./API/query)
+    - [scan](./API/scan)
+    - [transactDelete](./API/transactDelete)
+    - [transactGet](./API/transactGet)
+    - [transactPut](./API/transactPut)
+    - [transactUpdate](./API/transactUpdate)
+    - [transactWrite](./API/transactWrite)
+    - [update](./API/update)
+    - [using](./API/using%20LSI%20-%20GSI) LSI / GSI
+
+
+ ### simple example
+
+```ts
+await User.batchDelete(["user-1", "user-2"])
+```
+
+the same request with aws-sdk:
+
+```ts
+import { DynamoDBClient, BatchWriteItemCommand } from "@aws-sdk/client-dynamodb";
+
+const client = new DynamoDBClient({
+  region: "eu-west-3",
+  endpoint: "http://localhost:8000",
+});
+
+const cmd = new BatchWriteItemCommand({
+  RequestItems: {
+    "user-table": [
+      {
+        DeleteRequest: {
+          Key: {
+            id: {
+              S: "user-1",
+            },
+          },
+        },
+      },
+      {
+        DeleteRequest: {
+          Key: {
+            id: {
+              S: "user-2",
+            },
+          },
+        },
+      },
+    ],
+  },
+});
+
+await client.send(cmd);
+```
+
+
+:::note[documentation]
+
+To not duplicate Schema declarations, all documentations in API section will use Schema defined in introduction as example.
+
+:::
+
+
+In addition to storage related methods, Model class expose `client` and `table` properties.
+  - `client` is DynamoDBClient initialized with your provided config.
+  - `table` is an object which expose `name` (table's name)  `create`, `delete`, `describe` and `update` methods.
+
+They are usefull specially when writing integration tests.
+
+```ts
+import { User } from "../src/model/user";
+
+describe("Testing my table", () => {
+  beforeAll(async () => {
+    try {
+      await User.table.delete();
+    } catch (error) {}
+
+    await User.table.create();
+  });
+});
+```

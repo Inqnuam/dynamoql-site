@@ -1,0 +1,236 @@
+### Introduction
+`transactPut` method performs transact put request using aws-sdk [TransactWriteItemsCommand](https://docs.aws.amazon.com/AWSJavaScriptSDK/v3/latest/client/dynamodb/command/TransactWriteItemsCommand/).
+
+In addition to TransactWriteItemsCommandOutput `transactPut` response will include `Items` which is fully typed based on your Schema declaration.  
+`Items` is usefull as your Schema may include `default`, `set` or other transformer options.
+
+
+### execute
+
+`transactPut` takes 2 arguments:
+
+    1. (required) list of object which:
+        - must include `item` to be put
+        - optionnally `condition` related to the same item.
+        - optionnally `ReturnValuesOnConditionCheckFailure`
+    2. (optionnal) [options](#options) 
+
+
+
+any invalid value in Item will lead to dev time and runtime error
+
+```ts
+const res = await User.transactPut(
+  [
+    {
+    // highlight-next-line
+      item: {
+        id: "user-1",
+        age: 27,
+        firstname: "John",
+        sex: "male",
+        data: "something",
+      },
+    },
+    {
+     // highlight-next-line
+      item: {
+        id: "user-2",
+        age: 22,
+        firstname: "Sara",
+        sex: "female",
+        data: "something",
+        friends: ["user-1"],
+        isActive: false,
+      },
+    // highlight-next-line
+      condition: {
+        firstname: {
+          $neq: "Sara",
+        },
+      },
+    },
+  ],
+  { ReturnConsumedCapacity: "TOTAL" }
+);
+```
+
+
+### options
+
+`options` is an object which accepts `TransactWriteItemsCommandInput` options and DynamoQL specific options.
+
+
+    #### exec
+    `exec` boolean directive to execute or not the actual request.  
+    When `false` transactPut will return `TransactWriteItemsCommandInput` object.
+
+
+```ts
+import type { TransactWriteItemsCommandInput } from "@aws-sdk/client-dynamodb";
+
+const cmd: TransactWriteItemsCommandInput = await User.transactPut(
+  [
+    {
+      item: {
+        id: "user-1",
+        age: 27,
+        firstname: "John",
+        sex: "male",
+        data: "something",
+      },
+    },
+    {
+      item: {
+        id: "user-2",
+        age: 22,
+        firstname: "Sara",
+        sex: "female",
+        data: "something",
+        friends: ["user-1"],
+        isActive: false,
+      },
+    },
+  ],
+  // highlight-next-line
+  { exec: false }
+);
+```
+
+
+    #### setterInfo
+
+`setterInfo` allows you to pass any value to your Schema [set](/docs/schema/data-types/String#--set) function's third argument.
+
+```ts
+const res = await User.transactPut(
+  [
+    {
+      item: {
+        id: "user-1",
+        age: 27,
+        firstname: "John",
+        sex: "male",
+        data: "something",
+      },
+    },
+    {
+      item: {
+        id: "user-2",
+        age: 22,
+        firstname: "Sara",
+        sex: "female",
+        data: "something",
+        friends: ["user-1"],
+        isActive: false,
+      },
+    },
+  ],
+  // highlight-next-line
+  { setterInfo: { generateHash: true } }
+);
+```
+
+
+ #### check
+
+[ConditionCheck](https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_ConditionCheck.html) on the same table.
+
+
+```ts
+const res = await User.transactPut(
+  [
+    {
+      item: {
+        id: "user-1",
+        age: 27,
+        firstname: "John",
+        sex: "male",
+        data: "something",
+      },
+    },
+    {
+      item: {
+        id: "user-2",
+        age: 22,
+        firstname: "Sara",
+        sex: "female",
+        data: "something",
+        friends: ["user-1"],
+        isActive: false,
+      },
+      // highlight-next-line
+      condition: {
+        firstname: {
+          $neq: "Sara",
+        },
+      },
+    },
+  ],
+  {
+    // highlight-start
+    check: [
+      {
+        id: "user-64",
+        isActive: false,
+      },
+    ],
+    // highlight-end
+  }
+);
+```
+
+If you need ConditionCheck on another table, use `{ exec: false }` then merge your conditions manually.
+
+```ts
+import { TransactWriteItemsCommand } from "@aws-sdk/client-dynamodb";
+import type { TransactWriteItemsInput } from "@aws-sdk/client-dynamodb";
+
+const cmd: TransactWriteItemsInput = await User.transactPut(
+  [
+    {
+      item: {
+        id: "user-1",
+        age: 27,
+        firstname: "John",
+        sex: "male",
+        data: "something",
+      },
+    },
+    {
+      item: {
+        id: "user-2",
+        age: 22,
+        firstname: "Sara",
+        sex: "female",
+        data: "something",
+        friends: ["user-1"],
+        isActive: false,
+      },
+    },
+  ],
+  { exec: false }
+);
+
+// pretending UserOrders is another instance of Model
+
+const orderCheck: TransactWriteItemsInput = await UserOrders.transactWrite(
+  [
+    {
+      check: [
+        {
+          id: "user-id",
+          orders: {
+            $size: 0,
+          },
+        },
+      ],
+    },
+  ],
+  { exec: false }
+);
+
+cmd.TransactItems.push(orderCheck.TransactItems[0]);
+
+await User.client.send(new TransactWriteItemsCommand(cmd));
+```

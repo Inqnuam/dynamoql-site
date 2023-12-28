@@ -1,0 +1,126 @@
+### Introduction
+`batchWrite` method performs batch put and batch delete request using aws-sdk [BatchWriteItemCommand](https://docs.aws.amazon.com/AWSJavaScriptSDK/v3/latest/client/dynamodb/command/BatchWriteItemCommand/).
+
+In addition to BatchWriteItemCommandOutput `batchWrite` response will include `Items` which is fully typed based on your Schema declaration.  
+`Items` is usefull as your Schema may include `default`, `set` or other transformer options.
+
+
+### execute
+
+`batchWrite` takes 2 arguments:
+
+    1. object with put and/or delete Items
+    2. [options](#options) (optionnal)
+
+
+
+any invalid value in put Item will lead to dev time and runtime error
+
+```ts
+const res = await User.batchWrite(
+  {
+    delete: ["user-24", "user-61"],
+    put: [
+      {
+        id: "user-1",
+        age: 27,
+        firstname: "John",
+        sex: "male",
+        data: "something",
+      },
+      {
+        id: "user-2",
+        age: 22,
+        firstname: "Sara",
+        sex: "female",
+        data: "something",
+        friends: ["user-1"],
+        isActive: false,
+      },
+      {
+        id: "user-3",
+        age: 461,
+        firstname: "E.T.,",
+        // err
+        sex: "not human", // Type '"not human"' is not assignable to type '"male" | "female"'.
+        data: "something",
+      },
+    ],
+  },
+  { ReturnConsumedCapacity: "TOTAL" }
+);
+```
+
+
+### options
+
+`options` is an object which accepts `BatchWriteItemCommandInput` options and DynamoQL specific options.
+
+
+    #### exec
+    `exec` boolean directive to execute or not the actual request.  
+    When `false` batchWrite will return `BatchWriteItemCommandInput` object.
+
+
+```ts
+import type { BatchWriteItemCommandInput } from "@aws-sdk/client-dynamodb";
+
+const cmd: BatchWriteItemCommandInput = await User.batchWrite(
+  {
+    delete: ["user-24", "user-61"],
+    put: [
+      {
+        id: "user-1",
+        age: 27,
+        firstname: "John",
+        sex: "male",
+        data: "something",
+      },
+      {
+        id: "user-2",
+        age: 22,
+        firstname: "Sara",
+        sex: "female",
+        data: "something",
+        friends: ["user-1"],
+        isActive: false,
+      }
+    ]
+  },
+   // highlight-next-line
+  { exec: false }
+);
+```
+
+
+    #### setterInfo
+
+`setterInfo` allows you to pass any value to your Schema [set](/docs/schema/data-types/String#--set) function's third argument.
+
+```ts
+const res = await User.batchWrite(
+  {
+    delete: ["user-24", "user-61"],
+    put: [
+      {
+        id: "user-1",
+        age: 27,
+        firstname: "John",
+        sex: "male",
+        data: "something",
+      },
+      {
+        id: "user-2",
+        age: 22,
+        firstname: "Sara",
+        sex: "female",
+        data: "something",
+        friends: ["user-1"],
+        isActive: false,
+      }
+    ]
+  },
+  // highlight-next-line
+  { setterInfo: { generateHash: true } }
+);
+```

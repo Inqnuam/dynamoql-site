@@ -1,0 +1,68 @@
+### Introduction
+`delete` method performs delete request using aws-sdk [DeleteItemCommand](https://docs.aws.amazon.com/AWSJavaScriptSDK/v3/latest/client/dynamodb/command/DeleteItemCommand/).
+
+
+### execute
+
+`batchDelete` takes 2 arguments:
+
+    1. (required) item identifier
+        - item `primaryIndex`
+        - or an object which includes item `primaryIndex` (+ `sortKey` for HASH and RANGE tables) and optionnally [Condition expression](/docs/schema/data-types/String#condition-expression)
+    2. (optionnal) [options](#options) 
+
+
+
+simple delete request on a HASH table
+```ts
+const res = await User.delete("user-1", { ReturnConsumedCapacity: "TOTAL" } )
+```
+
+
+simple delete request on a HASH and RANGE table
+
+```ts
+const res = await User.delete(
+  {
+    groupId: "group-1", // Schema primaryIndex
+    userId: "user-1", // Schema sortKey
+  },
+  { ReturnConsumedCapacity: "TOTAL" }
+);
+```
+
+delete request with conditions
+```ts
+const res = await User.delete(
+  {
+    id: "user-1", // Schema primaryIndex
+     // highlight-start
+    age: {
+        $gt: 25 // deletes item if id = "user-1" and age is greater than 25
+    }
+    // highlight-end
+  },
+  { ReturnConsumedCapacity: "TOTAL" }
+);
+```
+
+
+
+### options
+
+`options` is an object which accepts `DeleteItemCommandInput` options and DynamoQL specific options.
+
+
+    #### exec
+    `exec` boolean directive to execute or not the actual request.  
+    When `false` delete will return `DeleteItemCommandInput` object.
+
+```ts
+import type { DeleteItemCommandInput } from "@aws-sdk/client-dynamodb";
+
+const cmd: DeleteItemCommandInput = await User.delete(
+  "user-1",
+  // highlight-next-line
+  { exec: false }
+);
+```

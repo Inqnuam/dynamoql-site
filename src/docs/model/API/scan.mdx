@@ -1,0 +1,125 @@
+### Introduction
+`scan` method performs scan request using aws-sdk [ScanCommand](https://docs.aws.amazon.com/AWSJavaScriptSDK/v3/latest/client/dynamodb/command/ScanCommand/).
+
+`Items` in ScanCommandOutput is fully typed based on your Schema declaration.
+
+
+### execute
+
+`scan` takes 2 optionnal arguments:
+
+    1. [FilterExpression](/docs/schema/data-types/String#condition-expression)
+    2. [options](#options)
+
+
+
+```ts
+const res = await User.scan(
+  {
+    age: { 
+        $gt: 22 
+    }
+  },
+  { ReturnConsumedCapacity: "TOTAL" }
+);
+
+res.Items[0].firstname;
+```
+
+
+
+
+### options
+
+`options` is an object which accepts `ScanCommandInput` options and DynamoQL specific options.
+
+
+    #### exec
+    `exec` boolean directive to execute or not the actual request.  
+    When `false` scan will return `ScanCommandInput` object.
+
+
+```ts
+import type { ScanCommandInput } from "@aws-sdk/client-dynamodb";
+
+const cmd: ScanCommandInput = await User.scan(
+  {
+    age: { 
+        $gt: 22 
+    }
+  },
+  // highlight-next-line
+  { exec: false }
+);
+```
+
+    #### Select
+
+`Select` accepts an array of attributes which produces a `ProjectionExpression`, or `"ALL"` | `"COUNT"`.
+
+
+```ts
+const res = await User.scan(
+  {
+    age: { 
+        $gt: 22 
+    }
+  },
+  // highlight-next-line
+  { Select: ["id", "isActive"] }
+);
+
+```
+
+
+:::note
+
+`Select` affects ScanCommandOutput type.
+
+```ts
+const { Items } = await User.scan(
+  {
+    age: { 
+        $gt: 22 
+    }
+  },
+  { Select: ["id", "isActive"] }
+);
+
+// err
+Items[0].firstname; // Property 'firstname' does not exist on type { id: string; isActive?:boolean } ...
+```
+
+
+```ts
+const res = await User.scan(
+  {
+    age: { 
+        $gt: 22 
+    }
+  },
+  { Select: "COUNT" }
+);
+
+// err
+res.Items; // Property 'Items' does not exist on type ScanCommandOutput
+```
+
+:::
+
+
+    #### getterInfo
+
+`getterInfo` allows you to pass any value to your Schema [get](/docs/schema/data-types/String#--get) function's third argument.
+
+```ts
+const res = await User.scan(
+  {
+    age: { 
+        $gt: 22 
+    }
+  },
+  // highlight-next-line
+  { getterInfo: { forFrontend: true } }
+);
+```

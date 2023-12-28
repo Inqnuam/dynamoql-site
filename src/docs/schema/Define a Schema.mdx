@@ -1,0 +1,161 @@
+import Tabs from "@theme/Tabs";
+import TabItem from "@theme/TabItem";
+import {clickHandler} from "../../src/scripts/typeLink"
+
+
+export const DOMHandler = ({children})=> {
+  return <div onClick={clickHandler}>{children}</div>
+}
+
+### Introduction
+
+To set up a DynamoDB table, it is essential to define a primary index (HASH key) or a primary key consisting of both HASH and SORT keys. Additionally, the table may include secondary indices like Local Secondary Index (LSI) or Global Secondary Index (GSI).
+
+Even when not explicitly creating a table using DynamoQL, it is imperative to specify the Attributes KeySchema using the Schema class exported by the DynamoQL module.
+
+The initial and fundamental step in DynamoQL usage is to define a Schema. Regardless of whether you are creating a table or working with existing ones, the Schema provides a crucial structure that ensures consistency in attribute handling. Therefore, defining a Schema is a prerequisite and should be the initial undertaking when embarking on DynamoQL operations.
+
+<Tabs>
+<TabItem value="esm" label="ESM">
+```ts 
+import { Schema } from "dynamoql";
+
+const userSchema = new Schema({});
+
+```
+</TabItem>
+<TabItem value="cjs" label="CJS">
+```ts
+const { Schema } = require("dynamoql");
+
+const userSchema = new Schema({});
+```
+</TabItem>
+</Tabs>
+
+When you write this code in your TypeScript-compatible editor (e.g., VSCode), you'll quickly observe that this Schema is currently invalid.
+
+As mentioned in the introduction, every DynamoDB Table must have a primary index, a detail we haven't addressed yet. DynamoQL seamlessly integrates with TypeScript/JSDoc to offer you instantaneous feedback during project development, enhancing the development experience.
+
+To define a HASH key explicitly, use the `primaryIndex` property within our Schema. By doing so, you'll not only meet the DynamoDB requirement for a primary index but also effectively soothe the TypeScript Language Server (TLS), ensuring a smoother development process and accurate type checking.
+
+```ts
+import { Schema } from "dynamoql";
+
+const userSchema = new Schema({
+  id: {
+    type: String,
+    primaryIndex: true,
+  },
+});
+```
+
+Congratulations! You have defined your first Schema.  
+
+The corresponding command for defining a HASH key using `@aws-sdk/client-dynamodb` would be:
+
+```ts
+import { CreateTableCommand } from "@aws-sdk/client-dynamodb";
+
+new CreateTableCommand({
+  ...,
+  AttributeDefinitions: [{ AttributeName: "id", AttributeType: "S" }],
+  KeySchema: [{ AttributeName: "id", KeyType: "HASH" }],
+});
+```
+
+DynamoQL's Schema goes beyond merely defining AttributeDefinitions and KeySchema; it extends to offer both development-time and runtime type safety, value transformations, setter/getter functionality, and more.  
+Unlike tools such as [Mongoose](https://mongoosejs.com/docs/typescript.html), [Sequelize](https://sequelize.org/docs/v6/other-topics/typescript/), or [AJV](https://ajv.js.org/guide/typescript.html) when working with TypeScript, there's no need to create an additional interface for your table item entity — DynamoQL takes care of this task for you seamlessly, even within JavaScript files.
+
+
+### Defining a Schema
+
+<DOMHandler>
+<Tabs>
+<TabItem value="ts" label="TypeScript">
+```ts showLineNumbers
+import { Schema } from "dynamoql";
+
+const userSchema = new Schema({
+  id: {
+    // StringType
+    type: String,
+    primaryIndex: true,
+  },
+    // NumberType
+  age: Number,
+  firstname: {
+    // StringType
+    type: String,
+    required: true,
+    capitalize: true
+  },
+  isActive: {
+    // BooleanType
+    type: Boolean,
+  },
+  sex: {
+    // StringType
+    type: String,
+    required: true,
+    enum: ["female", "male"],
+  },
+  friends: {
+    // ArrayType
+    type: Array,
+    // StringType
+    items: String,
+  },
+  data: [Number, String, { type: Set, items: String }]
+  // highlight-next-line
+} as const);
+```
+ </TabItem>
+<TabItem value="jsdoc" label="JSDoc">
+```js
+const { Schema } = require("dynamoql");
+
+const userSchema = new Schema(
+  // highlight-next-line
+  /** @type {const} */ ({
+    id: {
+      type: String,
+      primaryIndex: true,
+    },
+    age: Number,
+    firstname: {
+      type: String,
+      required: true,
+      capitalize: true,
+    },
+    isActive: {
+      type: Boolean,
+    },
+    sex: {
+      type: String,
+      required: true,
+      enum: ["female", "male"],
+    },
+    friends: {
+      type: Array,
+      items: String,
+    },
+    data: [Number, String, { type: Set, items: String }],
+  })
+);
+```
+</TabItem>
+</Tabs>
+</DOMHandler>
+
+Let's explore what we have declared.
+
+At line #8 we have defined  
+`{ age: Number }`.  
+which is is shorthand for  
+`{ age: { type: Number, required: true } }`
+
+Defining data-type with an object (`{type: ...}`) brings you more options. Each DynamoQL data type has its own options.  
+All fields except those marked as `primaryIndex`, `sortKey`, `LSI` and `GSI` can have multiple data types (example at #26). In TypeScript terminology this is called [union type](https://www.typescriptlang.org/docs/handbook/2/everyday-types.html#union-types).
+
+Please note that we marked our Schema `as const` #28. This helps TLS to consider field "sex" as `female` | `male` instead of any string.

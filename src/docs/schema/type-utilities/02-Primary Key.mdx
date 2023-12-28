@@ -1,0 +1,21 @@
+import Tabs from "@theme/Tabs";
+import TabItem from "@theme/TabItem";
+
+Retreving primary key type definition is not always usefull as [PutItem](./PutItem) but it is still possible.
+
+
+<Tabs>
+<TabItem value="ts" label="TypeScript">
+
+```ts 
+type UserPk = (typeof userSchema)["primaryKey"];
+ ```
+</TabItem>
+<TabItem value="jsdoc" label="JSDoc">
+```js
+/**
+ * @typedef {userSchema["primaryKey"]} UserPk
+ */
+ ```
+</TabItem>
+</Tabs>

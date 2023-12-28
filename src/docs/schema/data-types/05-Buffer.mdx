@@ -1,0 +1,815 @@
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+
+### Introduction
+`Buffer` represents DynamoDB's Binary data type (marshalled as "B").
+
+When storing an Item, `Buffer` attribute accept following types:  
+
+
+`ArrayBuffer` `Blob` `Buffer` `DataView` `File` `Int8Array` `Uint8Array` `Uint8ClampedArray` `Int16Array` `Uint16Array` `Int32Array` `Uint32Array` `Float32Array` `Float64Array` `BigInt64Array` `BigUint64Array`
+
+
+However when retrieved it is always a `Buffer`.
+
+### Define a Buffer
+<Tabs>
+<TabItem value='dql' label='DynamoQL'>
+
+```ts 
+import { Schema } from "dynamoql";
+import { randomUUID } from "crypto";
+
+ const userSchema = new Schema({
+  id: {
+    type: String,
+    primaryIndex: true,
+    default: randomUUID
+  },
+  // highlight-next-line
+  order: Buffer,
+  score: {
+    // highlight-next-line
+    type: Buffer,
+  }
+} as const);
+```
+
+
+</TabItem>
+
+<TabItem value='ts' label='produced type'>
+
+```ts 
+interface IUserSchema {
+    id: string,
+    order: Buffer,
+    score?: Buffer
+}
+```
+
+</TabItem>
+
+</Tabs>
+
+
+### Options
+
+ ### - primaryIndex 
+    **top-level only**  
+
+boolean which markes attribute as HASH key and makes attribute as required, default is `false`.  
+A Schema can have only one primaryIndex.
+
+```ts 
+import { Schema } from "dynamoql";
+
+ const userSchema = new Schema({
+  id: {
+    type: Buffer,
+    // highlight-next-line
+    primaryIndex: true,
+  },
+} as const);
+```
+
+    ### - sortKey 
+    **top-level only**  
+
+boolean which markes attribute as RANGE key and makes attribute as required, default is `false`.  
+A Schema can have only one sortKey.
+
+```ts 
+import { Schema } from "dynamoql";
+
+ const userSchema = new Schema({
+  countryCode: {
+    type: Buffer,
+    primaryIndex: true,
+  },
+  cityCode: {
+    type: Buffer,
+    // highlight-next-line
+    sortKey: true
+  }
+} as const);
+```
+
+
+    ### - LSI
+**top-level only**  
+
+defines a Local Secondary Index.  
+
+LSI option is an object where you must provide:
+    - `indexName` which should be unique across the Schema.  
+    - `project` which may be `ALL` | `KEYS` or  string[] where strings are attriubute names defined in the Schema. 
+
+```ts 
+import { Schema } from "dynamoql";
+
+ const userSchema = new Schema({
+  id: {
+    type: String,
+    primaryIndex: true,
+  },
+  image: {
+    type: Buffer,
+    // highlight-start
+    LSI: {
+        indexName: "image-index",
+        project: "ALL"
+    }
+    // highlight-end
+  }
+} as const);
+```
+
+   ### - GSI
+**top-level only**  
+
+defines a Global Secondary Index.  
+
+GSI option is an object where you must provide:
+    - `indexName` which should be unique across the Schema.  
+    - `project` which may be `ALL` | `KEYS` or  string[] where strings are attriubute names defined in the Schema. 
+
+
+```ts 
+import { Schema } from "dynamoql";
+
+ const userSchema = new Schema({
+  id: {
+    type: String,
+    primaryIndex: true,
+  },
+  image: {
+    type: Buffer,
+    // highlight-start
+    GSI: {
+        indexName: "image-index",
+        project: "ALL"
+    }
+    // highlight-end
+  }
+} as const);
+```
+
+for composite table (HASH and RANGE) you must provide another attribute with GSI:
+    - `indexName` which must be one of defined GSI indexName.
+    - `sortKey` true. 
+
+
+```ts 
+import { Schema } from "dynamoql";
+
+ const userSchema = new Schema({
+  id: {
+    type: String,
+    primaryIndex: true,
+  },
+  image: {
+    type: Buffer,
+    GSI: {
+        // highlight-next-line
+        indexName: "image-index",
+        project: "ALL"
+    }
+  },
+  order: {
+    type: Buffer,
+    GSI: {
+          // highlight-start
+        indexName: "image-index",
+        sortKey: true
+        // highlight-end
+    }
+  }
+} as const);
+```
+
+
+    ### - required 
+boolean which makes attribute as required or optionnal, default is `false` when type is defined with an Object.
+
+```ts 
+import { Schema } from "dynamoql";
+import { randomUUID } from "crypto";
+
+ const userSchema = new Schema({
+  id: {
+    type: String,
+    primaryIndex: true,
+    default: randomUUID
+  },
+  score: {
+    type: Buffer,
+    // highlight-next-line
+    required: true
+  }
+} as const);
+```
+
+
+    ### - default
+To set a default value for an attribute use `default` option.
+
+```ts 
+import { Schema } from "dynamoql";
+import { randomUUID } from "crypto";
+
+ const userSchema = new Schema({
+  id: {
+    type: String,
+    primaryIndex: true,
+    default: randomUUID
+  },
+  score: {
+    type: Buffer,
+    // highlight-next-line
+    default: Buffer.from("Hello WORLD")
+  }
+} as const);
+```
+
+ With this configuration when you `put` an Item into your table, your Item will contain score attribute with 5 as value.
+
+ `default` must be a Buffer.  
+ Otherwise it will throw an error during dev time and runtime.
+
+```ts 
+import { Schema } from "dynamoql";
+import { randomUUID } from "crypto";
+
+ const userSchema = new Schema({
+  id: {
+    type: String,
+    primaryIndex: true,
+    default: randomUUID
+  },
+  score: {
+    type: Buffer,
+    // err
+    default: "some-score" // DynamoQLInvalidTypeException: "score" expected to be "B" received "S".
+  }
+} as const);
+```
+
+ `default` can also be a (async) function which accepts one argument (put Item value) and must return a Buffer.
+
+```ts 
+import { Schema } from "dynamoql";
+import { randomUUID } from "crypto";
+
+ const userSchema = new Schema({
+  id: {
+    type: String,
+    primaryIndex: true,
+    default: randomUUID
+  },
+  // highlight-next-line
+  moderator: Boolean,
+  score: {
+    type: Buffer,
+    // highlight-start
+    default: (item: Record<string, any>)=> {
+        if(item.moderator) {
+            return Buffer.from(item.id)
+        }
+    }
+    // highlight-end
+  }
+} as const);
+```
+
+    ### - validate
+
+validate option allows you to manually validate provided value in `put` and `update` commands.  
+To return an error you should return a string which explains value invalidity. Any other returned value is considered as valid.
+
+```ts 
+import { Schema } from "dynamoql";
+import { randomUUID } from "crypto";
+
+ const userSchema = new Schema({
+  id: {
+    type: String,
+    primaryIndex: true,
+    default: randomUUID
+  },
+  moderator: Boolean,
+  image: {
+    type: Buffer,
+    // highlight-start
+    validate: (self: Buffer)=> {
+        if(self.byteLength < 10) {
+            return "Invalid image"
+        }
+    }
+    // highlight-end
+  }
+} as const);
+```
+
+
+    ### - min
+
+    define minimum binary size.
+
+```ts 
+import { Schema } from "dynamoql";
+import { randomUUID } from "crypto";
+
+ const userSchema = new Schema({
+  id: {
+    type: String,
+    primaryIndex: true,
+    default: randomUUID
+  },
+  moderator: Boolean,
+  score: {
+    type: Buffer,
+     // highlight-next-line
+    min: 1
+  }
+} as const);
+```   
+
+
+    ### - max
+
+    define maximum binary size.
+
+```ts 
+import { Schema } from "dynamoql";
+import { randomUUID } from "crypto";
+
+ const userSchema = new Schema({
+  id: {
+    type: String,
+    primaryIndex: true,
+    default: randomUUID
+  },
+  moderator: Boolean,
+  score: {
+    type: Buffer,
+     // highlight-next-line
+    max: 89
+  }
+} as const);
+```   
+
+    ### - set
+
+To modify a value before storing it use `set` option.  
+set (async) function accepts 3 arguments:
+    1. `self` provided value.
+    2. `item` entier put Item object.
+    3. `setterInfo` an optionnal value provided inside in put, batchPut, batchWrite, transactWrite command's options.
+
+`set` will not be called if attribute doesn't exists in put Item object.
+
+
+```ts 
+import { Schema } from "dynamoql";
+import { randomUUID } from "crypto";
+
+ const userSchema = new Schema({
+  id: {
+    type: String,
+    primaryIndex: true,
+    default: randomUUID
+  },
+  moderator: Boolean,
+  score: {
+    type: Buffer,
+    // highlight-start
+    set: (self: Buffer, item: Record<string, any>, setterInfo?: any)=> {
+
+        if(item.moderator && setterInfo?.someCondition) {
+         return Buffer.from("Hello WORLD")
+        }
+
+        return self
+    }
+    // highlight-end
+  }
+} as const);
+```
+
+    ### - get
+
+When reteving an Item we can transform field's value with get option.  
+
+get (async) function accepts 3 arguments:
+    1. `self` retrieved value.
+    2. `item` entier retrieved Item object.
+    3. `getterInfo` an optionnal value provided inside get, batchGet, transactGet, query, scan command's options.
+
+
+`get` can return anything.  
+`get` will not be called if attribute doesn't exists in stored Item.
+
+```ts 
+import { Schema } from "dynamoql";
+import { randomUUID } from "crypto";
+
+const userSchema = new Schema({
+  id: {
+    type: String,
+    primaryIndex: true,
+    default: randomUUID
+  },
+  moderator: Boolean,
+  image: {
+    type: Buffer,
+    items: String,
+    // highlight-start
+    get: (self: Buffer, item: Record<string, any>, getterInfo?: any)=> {
+        if(getterInfo.someCondition) {
+            return {
+                format: "png",
+                size: self.byteLength
+            }
+        }
+         return self
+    }
+    // highlight-end
+  }
+} as const);
+```
+
+:::info
+
+`get` returned value's type affects Item type when retriving Item(s) from DynamoDB. 
+
+:::
+
+
+  ### - description
+  add any information to the Schema for your personal usage.
+
+
+### Condition expression 
+
+Condition expression are not part of Schema but they are based on your defined Schema.  
+They are used in various DynamoDB operations to check for some condition(s).  
+DynamoQL supports all DynamoDB Condition expression.
+
+  ### - equals
+
+```json
+{
+  image: Buffer.from("image:png")
+}
+```
+
+or 
+
+```json
+{
+  image: {
+    // highlight-next-line
+    $eq: Buffer.from("image:png")
+  }
+}
+```
+
+  ### - not equals
+
+```json
+{
+  image: {
+    // highlight-next-line
+    $neq: Buffer.from("image:png")
+  }
+}
+```
+
+  ### - attribute exists
+
+`$exists` can be `true` or `false`.
+
+```json
+{
+  image: {
+    // highlight-next-line
+    $exists: true
+  }
+}
+```
+
+  ### - includes
+
+Checks if stored binary value contains provided value.
+
+```json
+{
+  image: {
+    // highlight-next-line
+    $includes: Buffer.from("png")
+  }
+}
+```
+
+  ### - binary length
+
+Checks for stored binary value's length.
+
+```json
+{
+  image: {
+    // highlight-next-line
+    $size: 1024
+  }
+}
+```
+
+`$size` can also be any valid numeric comparison operator.
+
+```json
+{
+  image: {
+    $size: {
+      // highlight-next-line
+      $gt: 1024
+    }
+  }
+}
+```
+Possible operators are [$eq](./Number#--equals), [$neq](./Number#--not-equals), [$gt](./Number#--greather-than), [$gte](./Number#--greather-than-or-equal), [$lt](./Number#--little-than), [$lte](./Number#--little-than-or-equal), [$in](./Number#--in), [$between](./Number#--between).  
+
+
+  ### - attribute type
+
+Checks for stored attribute type.
+
+```json
+{
+  image: {
+    // highlight-next-line
+    $type: Buffer
+  }
+}
+```
+`$type` can be String, Number, Boolean, Null, Buffer, Object, Array, or `{type: Set, items: String | Number | Buffer }`
+
+
+
+
+  ### - starts with
+
+Checks if stored binary value starts with provided value.
+
+```json
+{
+  image: {
+    // highlight-next-line
+    $startsWith: Buffer.from("image:gif")
+  }
+}
+```
+
+
+
+  ### - greather than
+
+Lexicographically compares if stored binary value is greather than provided value.
+
+```json
+{
+  image: {
+    // highlight-next-line
+    $gt: "Joh"
+  }
+}
+``` 
+  ### - greather than or equal
+
+Lexicographically compares if stored binary value is greather than or equal provided value.
+
+```json
+{
+  image: {
+    // highlight-next-line
+    $gte: "Joh"
+  }
+}
+``` 
+
+
+  ### - little than
+
+Lexicographically compares if stored binary value is little than provided value.
+
+```json
+{
+  image: {
+    // highlight-next-line
+    $lt: "Joh"
+  }
+}
+``` 
+
+  ### - little than or equal
+
+Lexicographically compares if stored binary value is little than or equal provided value.
+
+```json
+{
+  image: {
+    // highlight-next-line
+    $lte: "Joh"
+  }
+}
+``` 
+
+  ### - between
+
+Lexicographically compares if stored binary value is greather than or equal `value1` AND is little than or equal `value2`.
+
+```json
+{
+  image: {
+    // highlight-next-line
+    $between: [value1, value2]
+  }
+}
+``` 
+
+  ### - in
+
+Checks if provided array includes stored binary value.
+
+
+```json
+{
+  image: {
+    // highlight-next-line
+    $in: ["Steve", 214, "Sara", false, Buffer.from("image:png"), "Mike", null]
+  }
+}
+``` 
+
+
+
+  ### - AND
+
+Checks for multiple conditions. Condition is valid if ALL specified conditions are satisfied.
+
+```json
+{
+  image: {
+    // highlight-start
+    $and: [
+      {
+        $size: 4
+      },
+      {
+        $includes: Buffer.from("png")
+      }
+    ]
+    // highlight-end
+  }
+}
+```
+
+shorthand style
+
+```json
+{
+  image: {
+    $size: 4,
+    $includes: Buffer.from("png")
+  }
+}
+```
+
+  ### - OR
+
+Checks for multiple conditions. Condition is valid if at least one of specified conditions is satisfied.
+
+```json
+{
+  image: {
+    // highlight-start
+    $or: [
+      {
+        $size: 6
+      },
+      {
+        $includes: Buffer.from("png")
+      }
+    ]
+     // highlight-end
+  }
+}
+```
+
+  ### - NOT
+
+Condition is valid if specified condition is NOT satisfied.
+
+```json
+{
+  image: {
+    // highlight-next-line
+    $not: {
+      $includes: Buffer.from("png")
+    }
+  }
+}
+```
+
+`$not` accepts any Condition expression.
+
+When multiple conditions are provided inside $not: \{\} they are considered as $and condition.
+
+```json
+{
+  image: {
+    $not: {
+      // highlight-start
+      $size: 6,
+      $includes: Buffer.from("png")
+      // highlight-end
+    }
+  }
+}
+```
+
+longhand equivalent is:
+
+```json
+{
+  image: {
+    $not: {
+      // highlight-start
+      $and: [
+        {
+          $size: 6
+        },
+        {
+          $includes: Buffer.from("png")
+        }
+      ]
+      // highlight-end
+    }
+  }
+}
+```
+
+:::info
+
+To improve developper experience, when `ArrayBuffer` `Blob` `DataView` or `File` are used inside Conditionnal or Update expressions, intentionnally TS will complain about provided value type.  
+They are still valid types and you can safely ignore TS error message with // @ts-ignore.
+
+:::
+
+
+### Update expressions 
+
+Like Condition expression, Update expressions are not part of Schema, but they are based on defined Schema.
+
+Update expressions are used in `update`, `transactUpdate` and `transactWrite` operations.
+
+DynamoQL supports all DynamoDB update operations.
+
+
+  ### - set
+
+`$set` replaces stored binary value by provided binary value.
+
+```json
+{
+  image: {
+    // highlight-next-line
+    $set: Buffer.from("image:png")
+  }
+}
+```
+
+shorthand version is
+
+```json
+{
+  image: Buffer.from("image:png")
+}
+```
+
+
+  ### - if not exists
+
+`$ifNotExists` sets provided binary value if attribute do not exists in stored item.  
+`$ifNotExists` dont affects Condition expression and is attribute specific.  
+If attribute exists, stored value stays unchanged.
+
+
+```json
+{
+  image: {
+    // highlight-next-line
+    $ifNotExists: Buffer.from("image:png")
+  }
+}
+```

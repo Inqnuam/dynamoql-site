@@ -1,0 +1,187 @@
+### Introduction
+`transactUpdate` method performs transact update request using aws-sdk [TransactWriteItemsCommand](https://docs.aws.amazon.com/AWSJavaScriptSDK/v3/latest/client/dynamodb/command/TransactWriteItemsCommand/).
+
+
+
+### execute
+
+`transactUpdate` takes 2 arguments:
+
+    1. (required) list of object which must include:
+        - `condition`: any [Condition expression](/docs/schema/data-types/String#condition-expression) with at least item identifier
+        - `set`: any [Update Expression](/docs/schema/data-types/String#update-expressions).
+        - optionnally `ReturnValuesOnConditionCheckFailure`
+    2. (optionnal) [options](#options) 
+
+
+
+```ts
+const res = await User.transactUpdate(
+  [
+    {
+      // highlight-next-line
+      condition: {
+        id: "user-1",
+      },
+      // highlight-next-line
+      set: {
+        age: {
+          $incr: 1,
+        },
+      },
+    },
+    {
+      // highlight-next-line
+      condition: {
+        id: "user-2",
+        sex: "female",
+      },
+      // highlight-next-line
+      set: {
+        "friends[0]": "user-1",
+      },
+    },
+  ],
+  { ReturnConsumedCapacity: "TOTAL" }
+);
+```
+
+
+### options
+
+`options` is an object which accepts `TransactWriteItemsCommandInput` options and DynamoQL specific options.
+
+
+    #### exec
+    `exec` boolean directive to execute or not the actual request.  
+    When `false` transactUpdate will return `TransactWriteItemsCommandInput` object.
+
+
+```ts
+import type { TransactWriteItemsCommandInput } from "@aws-sdk/client-dynamodb";
+
+const cmd: TransactWriteItemsCommandInput = await User.transactUpdate(
+  [
+    {
+      condition: {
+        id: "user-1",
+      },
+      set: {
+        firstname: "John",
+      },
+    },
+    {
+      condition: {
+        id: "user-2",
+        age: 22,
+      },
+      set: {
+        firstname: "Sara",
+      },
+    },
+  ],
+  // highlight-next-line
+  { exec: false }
+);
+```
+
+
+
+ #### check
+
+[ConditionCheck](https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_ConditionCheck.html) on the same table.
+
+
+```ts
+const res = await User.transactUpdate(
+  [
+    {
+      condition: {
+        id: "user-1",
+        age: 27,
+        firstname: "John",
+      },
+      set: {
+        sex: "male",
+      },
+    },
+    {
+      condition: {
+        id: "user-2",
+        firstname: {
+          $neq: "Sara",
+        },
+      },
+      set: {
+        age: 22,
+        firstname: "Sara",
+        sex: "female",
+        friends: ["user-1"],
+        isActive: true,
+      },
+    },
+  ],
+  {
+    // highlight-start
+    check: [
+      {
+        id: "user-64",
+        isActive: false,
+      },
+    ],
+    // highlight-end
+  }
+);
+```
+
+If you need ConditionCheck on another table, use `{ exec: false }` then merge your conditions manually.
+
+```ts
+import { TransactWriteItemsCommand } from "@aws-sdk/client-dynamodb";
+import type { TransactWriteItemsInput } from "@aws-sdk/client-dynamodb";
+
+const cmd: TransactWriteItemsInput = await User.transactUpdate(
+  [
+    {
+      condition: {
+        id: "user-1",
+      },
+      set: {
+        isActive: true,
+      },
+    },
+    {
+      condition: {
+        id: "user-2",
+        isActive: false,
+      },
+      set: {
+        isActive: true,
+      },
+    },
+  ],
+  { exec: false }
+);
+
+// pretending UserOrders is another instance of Model
+
+const orderCheck: TransactWriteItemsInput = await UserOrders.transactWrite(
+  [
+    {
+      check: [
+        {
+          id: "user-id",
+          orders: {
+            $size: 0,
+          },
+        },
+      ],
+    },
+  ],
+  { exec: false }
+);
+
+cmd.TransactItems.push(orderCheck.TransactItems[0]);
+
+await User.client.send(new TransactWriteItemsCommand(cmd));
+```

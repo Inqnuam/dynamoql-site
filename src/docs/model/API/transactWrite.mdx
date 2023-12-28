@@ -1,0 +1,215 @@
+### Introduction
+`transactWrite` method performs transact write request using aws-sdk [TransactWriteItemsCommand](https://docs.aws.amazon.com/AWSJavaScriptSDK/v3/latest/client/dynamodb/command/TransactWriteItemsCommand/).
+
+
+
+### execute
+
+`transactWrite` takes 2 arguments:
+
+    1. (required) an object which must include:
+        - [check](#check) and/or [update](#update) and/or [put](#) and/or [delete](#)
+    2. (optionnal) [options](#options) 
+
+
+
+
+#### check
+
+an array of [Condition expression](/docs/schema/data-types/String#condition-expression) with at least item identifier.
+
+```ts
+const res = await User.transactWrite({
+  check: [
+    {
+      id: "user-64",
+      isActive: false,
+    },
+  ],
+});
+```
+
+#### delete
+
+an array of object which includes
+    - `condition` [Condition expression](/docs/schema/data-types/String#condition-expression) object with at least item identifier.
+    - (optionnally) `ReturnValuesOnConditionCheckFailure`.
+
+```ts
+const res = await User.transactWrite({
+  delete: [
+    {
+      // highlight-next-line
+      condition: {
+        id: "user-64",
+        isActive: false,
+      },
+    },
+  ],
+});
+```
+
+#### put
+
+an array of object which includes
+    - `item` item to be stored.
+    - (optionnally) `condition` [Condition expression](/docs/schema/data-types/String#condition-expression) object.
+    - (optionnally) [setterInfo](./put/#setterInfo)
+    - (optionnally) `ReturnValuesOnConditionCheckFailure`.
+    
+
+```ts
+const res = await User.transactWrite({
+  put: [
+    {
+      // highlight-next-line
+      item: {
+        id: "user-64",
+        firstname: "John",
+        lastname: "Doe",
+        age: 27,
+        isActive: true,
+      },
+      // highlight-next-line
+      condition: {
+        age: {
+          $gt: 25,
+        },
+      },
+      // highlight-next-line
+      setterInfo: {
+        generateHash: true,
+      },
+    },
+  ],
+});
+```
+
+
+
+#### update
+
+an array of object which includes
+    - `condition` [Condition expression](/docs/schema/data-types/String#condition-expression) object with at least item identifier.
+    - `set` any [Update Expression](/docs/schema/data-types/String#update-expressions) object.
+    - (optionnally) `ReturnValuesOnConditionCheckFailure`.
+
+```ts
+const res = await User.transactWrite({
+  update: [
+    {
+      condition: {
+        id: "user-64",
+        isActive: false,
+      },
+      set: {
+        firstname: "John",
+      },
+    },
+  ],
+});
+```
+
+
+<details>
+<summary>All together</summary>
+```ts
+const res = await User.transactWrite({
+  check: [
+    {
+      id: "user-07",
+      isActive: false,
+    },
+    {
+      id: "user-91",
+      isActive: true,
+    },
+  ],
+  put: [
+    {
+      item: {
+        id: "user-61",
+        firstname: "John",
+        lastname: "Doe",
+        age: 25,
+        isActive: true,
+      },
+      condition: {
+        age: {
+          $gt: 25,
+        },
+      },
+      setterInfo: {
+        generateHash: true,
+      },
+    },
+  ],
+  delete: [
+    {
+      condition: {
+        id: "user-32",
+        isActive: false,
+      },
+    },
+  ],
+  update: [
+    {
+      condition: {
+        id: "user-12",
+        isActive: false,
+      },
+      set: {
+        firstname: "Mike",
+      },
+    },
+  ],
+});
+```
+
+</details>
+
+
+
+
+### options
+
+`options` is an object which accepts `TransactWriteItemsCommandInput` options and DynamoQL specific options.
+
+
+    #### exec
+    `exec` boolean directive to execute or not the actual request.  
+    When `false` transactWrite will return `TransactWriteItemsCommandInput` object.
+
+
+```ts
+import type { TransactWriteItemsCommandInput } from "@aws-sdk/client-dynamodb";
+
+const cmd: TransactWriteItemsCommandInput = await User.transactWrite(
+  {
+    check: [
+      {
+        id: "user-07",
+        isActive: true,
+      },
+    ],
+    update: [
+      {
+        condition: {
+          id: "user-12",
+          isActive: false,
+        },
+        set: {
+          friendsId: {
+            $push: "user-07",
+          },
+        },
+      },
+    ],
+  },
+  {
+    // highlight-next-line
+    exec: false,
+  }
+);
+```
+

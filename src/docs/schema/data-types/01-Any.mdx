@@ -1,0 +1,143 @@
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+
+### Introduction
+`Any` type provided by DynamoQL is an union type of all DynamoQL types.
+
+TypeScript equivalent type is:
+
+```ts 
+type DemoAnyType = string | number | bigint | null | boolean | Buffer | Set<string | number | bigint | Buffer> | Record<string, DemoAnyType> | DemoAnyType[]
+```
+
+
+<Tabs>
+<TabItem value="dql" label="DynamoQL">
+
+```ts 
+  // highlight-next-line
+import { Schema, Any } from "dynamoql";
+import { randomUUID } from "crypto";
+
+ const userSchema = new Schema({
+  id: {
+    type: String,
+    primaryIndex: true,
+    default: randomUUID
+  },
+  // highlight-next-line
+  someRequiredData: Any,
+  someOptionnalField: {
+    // highlight-next-line
+    type: Any
+  }
+ } as const);
+```
+</TabItem>
+
+<TabItem value='ts' label='produced type'>
+```ts
+interface IUserSchema {
+    id: string,
+    someRequiredData: any;
+    someOptionnalField?: any
+}
+```
+</TabItem>
+</Tabs>
+
+
+:::info
+
+`Any` type's stored data type will depend on provided value.  
+An attribute with `Any` type accepts all DynamoQL types except `Date`. 
+
+:::
+
+
+:::note[Recommandation]
+
+Use `Any` type only when strictly necessary.  
+Always prefer union types like `{ myField: [String, Number, ...] }` when possible.
+
+:::
+
+### Options
+
+ ### - required 
+boolean which makes attribute as required or optionnal, default is `false` when type is defined with an Object.
+
+
+```ts 
+import { Schema, Any } from "dynamoql";
+import { randomUUID } from "crypto";
+
+ const userSchema = new Schema({
+  id: {
+    type: String,
+    primaryIndex: true,
+    default: randomUUID
+  },
+  someData: {
+    type: Any,
+    // highlight-next-line
+    required: true
+  }
+} as const);
+ ```
+
+
+    ### - default
+To set a default value for an attribute use `default` option.
+
+```ts 
+import { Schema, Any } from "dynamoql";
+import { randomUUID } from "crypto";
+
+ const userSchema = new Schema({
+  id: {
+    type: String,
+    primaryIndex: true,
+    default: randomUUID
+  },
+  someData: {
+    type: Any,
+    // highlight-next-line
+    default: null
+  }
+} as const);
+```
+
+With this configuration when you `put` an Item into your table, your Item will contain someData attribute with `null` as value.
+
+
+`default` can also be a (async) function which accepts one argument (put Item value).
+
+```ts 
+import { Schema, Any } from "dynamoql";
+import { randomUUID } from "crypto";
+
+ const userSchema = new Schema({
+  id: {
+    type: String,
+    primaryIndex: true,
+    default: randomUUID
+  },
+  // highlight-next-line
+  moderator: Boolean,
+  someData: {
+    type: Any,
+    // highlight-start
+    default: (item: Record<string, any>)=> {
+        if(item.moderator) {
+            return false
+        }
+        return false
+    }
+    // highlight-end
+  }
+} as const);
+```
+
+  ### - description
+  add any information to the Schema for your personal usage.

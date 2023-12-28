@@ -1,0 +1,23 @@
+import Tabs from "@theme/Tabs";
+import TabItem from "@theme/TabItem";
+
+
+StoredItem is very similar to [PutItem](./PutItem) except Schema `default` options don't affects `required` true/false option.
+
+
+
+<Tabs>
+<TabItem value="ts" label="TypeScript">
+
+```ts 
+type StoredItemEntity = (typeof userSchema)["StoredItem"];
+ ```
+</TabItem>
+<TabItem value="jsdoc" label="JSDoc">
+```js
+/**
+ * @typedef {userSchema["StoredItem"]} StoredItemEntity
+ */
+ ```
+</TabItem>
+</Tabs>

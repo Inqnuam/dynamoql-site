@@ -1,0 +1,90 @@
+When working with DynamoQL, 3 type of error may be thrown:
+     - DynamoQL related error
+     - aws-sdk v3 related error
+     - runtime error
+
+
+
+All DynamoQL related error are instances of `DynamoQLException`.  
+Here's hierarchy tree of all DynamoQL exceptions:
+
+
+ - DynamoQLException
+    - DynamoQLForbiddenOperationException
+    - DynamoQLValidatorException
+        - DynamoQLInvalidTypeException
+        - DynamoQLMissingKeyException
+        - DynamoQLInvalidEnumException
+        - DynamoQLInvalidMinMaxException
+        - DynamoQLCustomValidatorException
+
+
+
+
+`DynamoQLForbiddenOperationException` is thrown during update request when
+    - Removing a required attribute
+    - Setting unknown attribute
+    - Increasing / Decreasing an enum
+    - using invalid $.. expression
+
+Both `DynamoQLForbiddenOperationException` and `DynamoQLValidatorException` includes `TableName`.
+
+`DynamoQLValidatorException` includes `details`, an object which provides attribute paths and error messages.
+
+
+```ts
+import { DynamoQLException, DynamoQLValidatorException } from "dynamoql";
+import { ProvisionedThroughputExceededException } from "@aws-sdk/client-dynamodb";
+
+// pseudo Express route middleware
+const createUser = (req, res, next) => {
+  try {
+    await User.put(req.body);
+  } catch (error) {
+    if (error instanceof DynamoQLException) {
+      if (error instanceof DynamoQLValidatorException) {
+        return res.json(error);
+      }
+      // handle other error
+    } else if (error instanceof ProvisionedThroughputExceededException) {
+      // handle retry
+    } else {
+      next(error);
+    }
+  }
+};
+```
+
+
+:::info
+
+When DynamoQLValidatorException is *JSON.stringifed*  it returns only `details`
+
+:::
+
+
+
+:::tip
+
+When overwriting an error message you can use [getTypeFromKeyPath](/docs/schema/Advanced#gettypefromkeypath) to get error related attribute Schema.
+
+
+```ts
+try {
+  await User.put(req.body);
+} catch (error) {
+  if (error instanceof DynamoQLInvalidEnumException) {
+    const frontendErrorMessages = {};
+
+    Object.entries(error).forEach(([key, message]) => {
+      const schema = userSchema.getTypeFromKeyPath(key);
+
+      frontendErrorMessages[key] = `Անվավեր մուտքագրում: Դուք կարող եք օգտագործել միայն ${schema.enum.join(", ")}`;
+    });
+
+    return frontendErrorMessages;
+  }
+}
+```
+
+:::
