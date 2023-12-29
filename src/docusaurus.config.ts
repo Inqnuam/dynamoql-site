@@ -2,6 +2,8 @@ import { themes as prismThemes } from "prism-react-renderer";
 import type { Config } from "@docusaurus/types";
 import type * as Preset from "@docusaurus/preset-classic";
 
+export const baseUrl = "/dynamoql-site/";
+
 const config: Config = {
   title: "DynamoQL",
   tagline: "Transforming DynamoDB Complexity into Developer Simplicity.",
@@ -11,7 +13,7 @@ const config: Config = {
   url: "https://inqnuam.github.io",
   // Set the /<baseUrl>/ pathname under which your site is served
   // For GitHub pages deployment, it is often '/<projectName>/'
-  baseUrl: "/dynamoql-site/",
+  baseUrl,
 
   // GitHub pages deployment config.
   // If you aren't using GitHub pages, you don't need these.
@@ -28,7 +30,7 @@ const config: Config = {
     defaultLocale: "en",
     locales: ["en"],
   },
-  clientModules: ["./src/scripts/typeLink.ts"],
+  // clientModules: ["./src/scripts/typeLink.ts"],
   presets: [
     [
       "classic",
